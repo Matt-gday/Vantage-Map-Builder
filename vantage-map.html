@@ -1,0 +1,2939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vantage Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #F7FAFC;
+            color: #0F172A;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Toolbar */
+        #toolbar {
+            height: 56px;
+            background: white;
+            border-bottom: 1px solid #E2E8F0;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        #add-btn {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .toolbar-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            color: #0F172A;
+            transition: all 0.2s;
+        }
+
+        .toolbar-btn:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+        }
+
+        .toolbar-btn.primary {
+            background: #0EA5E9;
+            color: white;
+            border-color: #0EA5E9;
+        }
+
+        .toolbar-btn.primary:hover {
+            background: #0284C7;
+        }
+
+        .toolbar-btn:hover:not(:disabled) {
+            background: #F1F5F9;
+        }
+
+        .toolbar-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        #reset-btn:hover {
+            background: #FEE2E2 !important;
+            border-color: #DC2626 !important;
+            color: #DC2626 !important;
+        }
+
+        .toolbar-spacer {
+            flex: 1;
+        }
+
+        #layer-select {
+            padding: 8px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            background: white;
+            cursor: pointer;
+            color: #0F172A;
+            transition: all 0.2s;
+        }
+        
+        #layer-select:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+        }
+        
+        #layer-select:focus {
+            outline: none;
+            border-color: #0EA5E9;
+            background: white;
+        }
+        
+        .search-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748B;
+            font-size: 16px;
+            pointer-events: none;
+        }
+        
+        #search-input {
+            width: 120px;
+            padding: 8px 12px 8px 32px;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            background: white;
+            color: #0F172A;
+            transition: all 0.2s;
+        }
+        
+        #search-input:hover {
+            background: #F1F5F9;
+            border-color: #94A3B8;
+        }
+        
+        #search-input:focus {
+            outline: none;
+            border-color: #0EA5E9;
+            background: white;
+        }
+        
+        #search-input::placeholder {
+            color: #94A3B8;
+        }
+
+        /* Map Canvas */
+        #map-container {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 56px);
+            overflow: hidden;
+        }
+
+        #map-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Modal */
+        .modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-backdrop.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .modal-subheader {
+            font-size: 14px;
+            color: #64748B;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #475569;
+        }
+
+        .form-label.required::after {
+            content: " *";
+            color: #EF4444;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #CBD5E1;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #0EA5E9;
+        }
+
+        .direction-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .direction-btn {
+            padding: 12px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .direction-btn:hover:not(:disabled) {
+            border-color: #0EA5E9;
+            background: #F0F9FF;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .direction-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .direction-btn.active {
+            background: #0EA5E9;
+            border-color: #0EA5E9;
+            color: white;
+        }
+
+        .direction-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            background: #F1F5F9;
+        }
+
+        .vertical-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .other-button {
+            width: 100%;
+        }
+
+        .orientation-btn {
+            flex: 1;
+            padding: 12px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .orientation-btn:hover {
+            border-color: #0EA5E9;
+            background: #F0F9FF;
+        }
+
+        .orientation-btn.active {
+            background: #0EA5E9;
+            border-color: #0EA5E9;
+            color: white;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .modal-btn.cancel {
+            background: white;
+            border: 1px solid #CBD5E1;
+            color: #0F172A;
+        }
+
+        .modal-btn.cancel:hover {
+            background: #F1F5F9;
+        }
+
+        .modal-btn.save {
+            background: #10B981;
+            color: white;
+        }
+
+        .modal-btn.save:hover:not(:disabled) {
+            background: #059669;
+        }
+
+        .modal-btn.save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            font-weight: 500;
+            animation: slideIn 0.3s ease-out;
+            min-width: 250px;
+        }
+
+        .toast.success {
+            background: #10B981;
+            color: white;
+        }
+
+        .toast.error {
+            background: #EF4444;
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Hidden file input */
+        #import-file-input {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Toolbar -->
+    <div id="toolbar">
+        <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+        <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
+        <button class="toolbar-btn" id="export-btn">Export JSON</button>
+        <button class="toolbar-btn" id="import-btn">Import JSON</button>
+        <button class="toolbar-btn" id="zoom-fit-btn">Show Entire Map</button>
+        <button class="toolbar-btn primary" id="add-btn">Add +</button>
+        <div class="toolbar-spacer"></div>
+        <div class="search-wrapper">
+            <span class="search-icon">⌕</span>
+            <input type="search" id="search-input" placeholder="Find 007..." maxlength="3" inputmode="numeric">
+        </div>
+        <select id="layer-select">
+            <!-- Dynamically populated based on card z-levels -->
+        </select>
+        <button class="toolbar-btn" id="reset-btn" style="color: #EF4444; border-color: #EF4444;">Reset</button>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map-container">
+        <canvas id="map-canvas"></canvas>
+    </div>
+
+    <!-- Add Location Modal -->
+    <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">Add Location</div>
+            <div class="modal-subheader" id="modal-subheader"></div>
+            <div class="form-group">
+                <label class="form-label" for="card-number">Location ID</label>
+                <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label class="form-label" for="card-note">Notes (optional)</label>
+                <input type="search" class="form-input" id="card-note" placeholder="e.g., Flooded Cave">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Orientation</label>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" class="orientation-btn active" data-orientation="landscape">
+                        <div style="width: 40px; height: 24px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                        Landscape
+                    </button>
+                    <button type="button" class="orientation-btn" data-orientation="portrait">
+                        <div style="width: 24px; height: 40px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                        Portrait
+                    </button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label" id="direction-label">Direction</label>
+                <div class="direction-grid">
+                    <div></div>
+                    <button class="direction-btn" data-direction="N">N</button>
+                    <div></div>
+                    <button class="direction-btn" data-direction="W">W</button>
+                    <div></div>
+                    <button class="direction-btn" data-direction="E">E</button>
+                    <div></div>
+                    <button class="direction-btn" data-direction="S">S</button>
+                    <div></div>
+                </div>
+                <div class="vertical-buttons">
+                    <button class="direction-btn" data-direction="up">↑ Up</button>
+                    <button class="direction-btn" data-direction="down">↓ Down</button>
+                </div>
+                <button class="direction-btn other-button" data-direction="other">Other</button>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
+                <button class="modal-btn save" id="modal-save" disabled>Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Reset Confirmation Modal -->
+    <div class="modal-backdrop" id="reset-modal-backdrop">
+        <div class="modal">
+            <div class="modal-header" style="color: #EF4444;">⚠️ Reset Map</div>
+            <p style="margin: 20px 0; line-height: 1.6; color: #475569;">
+                Are you sure you want to reset the entire map?
+                <br><br>
+                <strong>This will permanently delete:</strong>
+                <br>• All location cards
+                <br>• All connections
+                <br>• All saved data
+                <br><br>
+                This action cannot be undone.
+            </p>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" id="reset-cancel">Cancel</button>
+                <button class="modal-btn" id="reset-confirm" style="background: #EF4444; color: white;">Delete Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="import-file-input" accept=".json">
+
+    <script>
+        // ===== STATE MANAGEMENT =====
+        const state = {
+            cards: [],
+            links: [],
+            currentCardId: null,
+            meta: {
+                version: 1,
+                created: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+            },
+            view: {
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+                activeLayer: 0
+            }
+        };
+
+        // ===== ANIMATION STATE =====
+        let isAnimating = false;
+        let animationStartTime = 0;
+        let animationDuration = 500; // ms
+        let animationStart = {};
+        let animationTarget = {};
+        let layerTransitionOpacity = 1;
+        let isLayerTransitioning = false;
+
+        let nextCardId = 1;
+        let nextLinkId = 1;
+
+        // ===== HISTORY MANAGEMENT =====
+        let history = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 50;
+
+        // ===== UTILITY FUNCTIONS =====
+        function generateId(prefix) {
+            if (prefix === 'card') return `card_${nextCardId++}`;
+            if (prefix === 'link') return `link_${nextLinkId++}`;
+        }
+
+        function padCardNumber(num) {
+            return String(num).padStart(3, '0');
+        }
+
+        function saveHistory() {
+            // Remove any history after current index (for redo branch)
+            history = history.slice(0, historyIndex + 1);
+            
+            // Save current state
+            const snapshot = {
+                cards: JSON.parse(JSON.stringify(state.cards)),
+                links: JSON.parse(JSON.stringify(state.links)),
+                currentCardId: state.currentCardId,
+                nextCardId: nextCardId,
+                nextLinkId: nextLinkId
+            };
+            
+            history.push(snapshot);
+            
+            // Limit history size
+            if (history.length > MAX_HISTORY) {
+                history.shift();
+            } else {
+                historyIndex++;
+            }
+            
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyIndex <= 0) return;
+            
+            historyIndex--;
+            restoreFromHistory();
+            updateLayerSelector();
+            showToast('Undone', 'success');
+        }
+
+        function redo() {
+            if (historyIndex >= history.length - 1) return;
+            
+            historyIndex++;
+            restoreFromHistory();
+            updateLayerSelector();
+            showToast('Redone', 'success');
+        }
+
+        function restoreFromHistory() {
+            if (historyIndex < 0 || historyIndex >= history.length) return;
+            
+            const snapshot = history[historyIndex];
+            state.cards = JSON.parse(JSON.stringify(snapshot.cards));
+            state.links = JSON.parse(JSON.stringify(snapshot.links));
+            state.currentCardId = snapshot.currentCardId;
+            nextCardId = snapshot.nextCardId;
+            nextLinkId = snapshot.nextLinkId;
+            
+            saveToLocalStorage();
+            render();
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            const undoBtn = document.getElementById('undo-btn');
+            const redoBtn = document.getElementById('redo-btn');
+            
+            undoBtn.disabled = historyIndex <= 0;
+            redoBtn.disabled = historyIndex >= history.length - 1;
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            // Error messages stay longer (5 seconds), success messages are shorter (2.5 seconds)
+            const duration = type === 'error' ? 5000 : 2500;
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(400px)';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function getCardById(id) {
+            return state.cards.find(c => c.id === id);
+        }
+
+        function getCardByNumber(num) {
+            return state.cards.find(c => c.num === num);
+        }
+
+        function getCurrentCard() {
+            return state.currentCardId ? getCardById(state.currentCardId) : null;
+        }
+
+        // ===== AUTO LAYOUT SOLVER =====
+        function solveLayout() {
+            // Clear positions only for cards that haven't been manually positioned
+            state.cards.forEach(card => {
+                if (!card.manuallyPositioned) {
+                    card.x = null;
+                    card.y = null;
+                    card.z = null;
+                    card.positioned = false;
+                }
+            });
+
+            // Set first card to origin if not already positioned
+            if (state.cards.length > 0 && state.cards[0].x === null) {
+                state.cards[0].x = 0;
+                state.cards[0].y = 0;
+                state.cards[0].z = 0;
+                state.cards[0].positioned = true;
+            }
+
+            // Get cardinal connectivity groups BEFORE positioning
+            const groups = getCardinalConnectivityGroups();
+            
+            // Find the main group (contains the first card)
+            let mainGroup = null;
+            if (state.cards.length > 0) {
+                for (const group of groups) {
+                    if (group.has(state.cards[0].id)) {
+                        mainGroup = group;
+                        break;
+                    }
+                }
+            }
+
+            // Assign each group an offset position with minimal buffer
+            const groupOffsets = new Map();
+            const buffer = 1; // 1 grid unit buffer between groups
+            const positionedGroups = [];
+            
+            for (const group of groups) {
+                if (group === mainGroup) {
+                    groupOffsets.set(group, { x: 0, y: 0 }); // Main group at origin
+                    positionedGroups.push({ group, offset: { x: 0, y: 0 } });
+                } else {
+                    // Find a position that maintains buffer from all existing groups
+                    const offset = findOffsetWithBuffer(group, positionedGroups, buffer);
+                    groupOffsets.set(group, offset);
+                    positionedGroups.push({ group, offset });
+                }
+            }
+
+            // Position each group independently
+            for (let i = 0; i < groups.length; i++) {
+                const group = groups[i];
+                const offset = groupOffsets.get(group);
+                positionGroup(group, offset);
+                
+                // After positioning, update the positioned groups with actual bounds
+                if (group !== mainGroup) {
+                    const actualBounds = getGroupBounds(group, offset);
+                    for (let j = 0; j < positionedGroups.length; j++) {
+                        if (positionedGroups[j].group === group) {
+                            positionedGroups[j].bounds = actualBounds;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+        }
+
+        function findOffsetWithBuffer(group, positionedGroups, buffer) {
+            // Try positions in a spiral pattern, finding the closest valid spot
+            const candidates = [];
+            
+            // Start very close and expand gradually
+            for (let distance = 2; distance <= 15; distance += 0.5) {
+                // Try 8 directions at this distance
+                const radius = Math.round(distance);
+                candidates.push(
+                    { x: radius, y: 0 },
+                    { x: -radius, y: 0 },
+                    { x: 0, y: radius },
+                    { x: 0, y: -radius }
+                );
+                
+                // Add diagonals at slightly larger distances
+                if (distance >= 3) {
+                    const diag = Math.round(distance * 0.7);
+                    candidates.push(
+                        { x: diag, y: diag },
+                        { x: -diag, y: diag },
+                        { x: diag, y: -diag },
+                        { x: -diag, y: -diag }
+                    );
+                }
+            }
+            
+            // Check each candidate position
+            for (const candidate of candidates) {
+                if (isValidOffset(candidate, group, positionedGroups, buffer)) {
+                    return candidate;
+                }
+            }
+            
+            // Fallback: place to the right
+            return { x: 10, y: 0 };
+        }
+        
+        function isValidOffset(offset, group, positionedGroups, buffer) {
+            // Get bounding box for this group at the proposed offset
+            const groupBounds = getGroupBounds(group, offset);
+            if (!groupBounds) return false;
+            
+            // Check against all existing groups
+            for (const positioned of positionedGroups) {
+                const existingBounds = getGroupBounds(positioned.group, positioned.offset);
+                if (!existingBounds) continue;
+                
+                // Check if there's at least 'buffer' space between bounding boxes
+                const horizontalGap = Math.min(
+                    Math.abs(groupBounds.maxX - existingBounds.minX),
+                    Math.abs(existingBounds.maxX - groupBounds.minX)
+                );
+                const verticalGap = Math.min(
+                    Math.abs(groupBounds.maxY - existingBounds.minY),
+                    Math.abs(existingBounds.maxY - groupBounds.minY)
+                );
+                
+                // Check if bounding boxes overlap or are too close
+                const horizontalOverlap = groupBounds.maxX >= existingBounds.minX && groupBounds.minX <= existingBounds.maxX;
+                const verticalOverlap = groupBounds.maxY >= existingBounds.minY && groupBounds.minY <= existingBounds.maxY;
+                
+                if (horizontalOverlap && verticalOverlap) {
+                    return false; // Overlapping
+                }
+                
+                // If aligned horizontally, check vertical gap
+                if (horizontalOverlap && verticalGap < buffer) {
+                    return false;
+                }
+                
+                // If aligned vertically, check horizontal gap
+                if (verticalOverlap && horizontalGap < buffer) {
+                    return false;
+                }
+            }
+            
+            return true;
+        }
+        
+        function getGroupBounds(group, offset) {
+            // Calculate the bounding box of a group at a given offset
+            const groupCards = Array.from(group).map(id => getCardById(id)).filter(c => c);
+            if (groupCards.length === 0) return null;
+            
+            // Check if cards are already positioned (for positioned groups)
+            const positionedCards = groupCards.filter(c => c.x !== null);
+            
+            if (positionedCards.length > 0) {
+                // Use actual positions
+                const xs = positionedCards.map(c => c.x);
+                const ys = positionedCards.map(c => c.y);
+                return {
+                    minX: Math.min(...xs),
+                    maxX: Math.max(...xs),
+                    minY: Math.min(...ys),
+                    maxY: Math.max(...ys)
+                };
+            } else {
+                // Estimate: most groups are very small, assume just 1 unit radius
+                const estimatedSize = 1;
+                
+                return {
+                    minX: offset.x - estimatedSize,
+                    maxX: offset.x + estimatedSize,
+                    minY: offset.y - estimatedSize,
+                    maxY: offset.y + estimatedSize
+                };
+            }
+        }
+
+        function positionGroup(group, offset) {
+            // Check if any card in the group is manually positioned
+            let hasManuallyPositioned = false;
+            let anchorCard = null;
+            
+            for (const cardId of group) {
+                const card = getCardById(cardId);
+                if (card && card.manuallyPositioned && card.x !== null) {
+                    hasManuallyPositioned = true;
+                    if (!anchorCard) {
+                        anchorCard = card; // Use first manually positioned card as anchor
+                    }
+                }
+            }
+            
+            // If group has manually positioned cards, preserve them but still process new cards
+            if (hasManuallyPositioned) {
+                // Mark existing positioned cards as manually positioned to preserve the layout
+                for (const cardId of group) {
+                    const card = getCardById(cardId);
+                    if (card && card.x !== null) {
+                        card.manuallyPositioned = true;
+                        card.positioned = true;
+                    }
+                }
+                // Don't return - continue to process new unpositioned cards below
+            } else {
+                // Find the first card in this group to use as anchor (for non-manually positioned groups)
+                for (const cardId of group) {
+                    const card = getCardById(cardId);
+                    if (card) {
+                        if (!anchorCard || state.cards.indexOf(card) < state.cards.indexOf(anchorCard)) {
+                            anchorCard = card;
+                        }
+                    }
+                }
+
+                if (!anchorCard) return;
+
+                // Position anchor at offset (only for non-manually positioned groups)
+                if (anchorCard.x === null) {
+                    anchorCard.x = offset.x;
+                    anchorCard.y = offset.y;
+                    anchorCard.z = 0;
+                    anchorCard.positioned = true;
+                }
+            }
+
+            // Breadth-first propagation within this group
+            let changed = true;
+            let iterations = 0;
+            const maxIterations = 100;
+
+            while (changed && iterations < maxIterations) {
+                changed = false;
+                iterations++;
+
+                for (const link of state.links) {
+                    if (!link.certified) continue;
+                    if (link.kind === 'other') continue; // Skip "other" - it doesn't affect positioning
+
+                    const fromCard = getCardById(link.from);
+                    const toCard = getCardById(link.to);
+
+                    if (!fromCard || !toCard) continue;
+                    
+                    // Only process if both cards are in this group
+                    if (!group.has(fromCard.id) || !group.has(toCard.id)) continue;
+
+                    // If from has position but to doesn't (and to is not manually positioned)
+                    if (fromCard.x !== null && toCard.x === null && !toCard.manuallyPositioned) {
+                        const newPos = calculateNewPosition(fromCard, link.kind);
+                        if (newPos) {
+                            if (checkCollision(newPos.x, newPos.y, newPos.z, toCard.id)) {
+                                showToast(`Collision: Cell (${newPos.x},${newPos.y},${newPos.z}) already occupied`, 'error');
+                                continue;
+                            }
+                            toCard.x = newPos.x;
+                            toCard.y = newPos.y;
+                            toCard.z = newPos.z;
+                            toCard.positioned = true;
+                            changed = true;
+                        }
+                    }
+                    // If to has position but from doesn't (and from is not manually positioned)
+                    else if (toCard.x !== null && fromCard.x === null && !fromCard.manuallyPositioned) {
+                        const newPos = calculateNewPosition(toCard, reverseDirection(link.kind));
+                        if (newPos) {
+                            if (checkCollision(newPos.x, newPos.y, newPos.z, fromCard.id)) {
+                                showToast(`Collision: Cell (${newPos.x},${newPos.y},${newPos.z}) already occupied`, 'error');
+                                continue;
+                            }
+                            fromCard.x = newPos.x;
+                            fromCard.y = newPos.y;
+                            fromCard.z = newPos.z;
+                            fromCard.positioned = true;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        function calculateNewPosition(card, direction) {
+            if (card.x === null) return null;
+
+            const pos = { x: card.x, y: card.y, z: card.z };
+
+            switch (direction) {
+                case 'N': pos.y -= 1; break;
+                case 'S': pos.y += 1; break;
+                case 'E': pos.x += 1; break;
+                case 'W': pos.x -= 1; break;
+                case 'up': pos.z += 1; break;
+                case 'down': pos.z -= 1; break;
+                case 'other': return null; // No coordinate change
+                default: return null;
+            }
+
+            return pos;
+        }
+
+        function reverseDirection(dir) {
+            const reverseMap = {
+                'N': 'S', 'S': 'N', 'E': 'W', 'W': 'E',
+                'up': 'down', 'down': 'up', 'other': 'other'
+            };
+            return reverseMap[dir] || dir;
+        }
+
+        function checkCollision(x, y, z, excludeCardId) {
+            // Simple collision check - is there any card at this exact position?
+            // Don't worry about groups - just check if the space is occupied
+            return state.cards.some(card => {
+                if (card.id === excludeCardId) return false;
+                if (card.x === x && card.y === y && card.z === z) {
+                    return true; // Space is occupied
+                }
+                return false;
+            });
+        }
+        
+        function getCardinalConnectivityGroups() {
+            // Build groups of cards connected by cardinal directions (N/S/E/W/up/down)
+            // Cards connected only by "other" are in separate groups
+            const groups = [];
+            const visited = new Set();
+            
+            for (const card of state.cards) {
+                if (visited.has(card.id)) continue;
+                
+                // BFS to find all cardinally connected cards
+                const group = new Set();
+                const queue = [card.id];
+                
+                while (queue.length > 0) {
+                    const currentId = queue.shift();
+                    if (group.has(currentId)) continue;
+                    
+                    group.add(currentId);
+                    visited.add(currentId);
+                    
+                    // Find all cardinally connected cards
+                    for (const link of state.links) {
+                        if (link.kind === 'other') continue; // Skip "other" connections
+                        
+                        if (link.from === currentId && !group.has(link.to)) {
+                            queue.push(link.to);
+                        } else if (link.to === currentId && !group.has(link.from)) {
+                            queue.push(link.from);
+                        }
+                    }
+                }
+                
+                groups.push(group);
+            }
+            
+            return groups;
+        }
+
+        // ===== IMPLIED CONNECTIONS =====
+        function calculateImpliedConnections() {
+            const implied = [];
+            
+            // Get cardinal connectivity groups
+            const cardinalGroups = getCardinalConnectivityGroups();
+
+            for (let i = 0; i < state.cards.length; i++) {
+                for (let j = i + 1; j < state.cards.length; j++) {
+                    const card1 = state.cards[i];
+                    const card2 = state.cards[j];
+
+                    if (card1.x === null || card2.x === null) continue;
+
+                    // Check if they're in the same cardinal connectivity group
+                    let sameGroup = false;
+                    for (const group of cardinalGroups) {
+                        if (group.has(card1.id) && group.has(card2.id)) {
+                            sameGroup = true;
+                            break;
+                        }
+                    }
+                    
+                    // Only create implied connections within the same cardinal group
+                    if (!sameGroup) continue;
+
+                    // Check if they're adjacent
+                    const dx = Math.abs(card1.x - card2.x);
+                    const dy = Math.abs(card1.y - card2.y);
+                    const dz = Math.abs(card1.z - card2.z);
+
+                    let isAdjacent = false;
+                    let impliedKind = null;
+
+                    // Horizontal adjacency (same z, one step in x or y)
+                    if (dz === 0 && ((dx === 1 && dy === 0) || (dx === 0 && dy === 1))) {
+                        isAdjacent = true;
+                        if (dx === 1) impliedKind = card1.x < card2.x ? 'E' : 'W';
+                        else impliedKind = card1.y < card2.y ? 'S' : 'N';
+                    }
+                    // Vertical adjacency (same x,y, one step in z)
+                    else if (dx === 0 && dy === 0 && dz === 1) {
+                        isAdjacent = true;
+                        impliedKind = card1.z < card2.z ? 'up' : 'down';
+                    }
+
+                    if (isAdjacent) {
+                        // Check if there's already a certified connection
+                        const hasCertified = state.links.some(link => 
+                            link.certified &&
+                            ((link.from === card1.id && link.to === card2.id) ||
+                             (link.from === card2.id && link.to === card1.id))
+                        );
+
+                        if (!hasCertified) {
+                            implied.push({
+                                from: card1.id,
+                                to: card2.id,
+                                kind: impliedKind,
+                                certified: false
+                            });
+                        }
+                    }
+                }
+            }
+
+            return implied;
+        }
+
+        // ===== MODAL LOGIC =====
+        const modal = document.getElementById('modal-backdrop');
+        const cardNumberInput = document.getElementById('card-number');
+        const cardNoteInput = document.getElementById('card-note');
+        const directionButtons = document.querySelectorAll('.direction-btn');
+        const orientationButtons = document.querySelectorAll('.orientation-btn');
+        const saveButton = document.getElementById('modal-save');
+        const cancelButton = document.getElementById('modal-cancel');
+
+        let selectedDirection = null;
+        let selectedOrientation = 'landscape'; // Default
+
+        document.getElementById('add-btn').addEventListener('click', openModal);
+        cancelButton.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        function openModal() {
+            modal.classList.add('active');
+            cardNumberInput.value = '';
+            cardNoteInput.value = '';
+            selectedDirection = null;
+            selectedOrientation = 'landscape';
+            
+            // Disable direction buttons if this is the first card
+            const isFirstCard = state.cards.length === 0;
+            const currentCard = getCurrentCard();
+            const directionLabel = document.getElementById('direction-label');
+            const subheader = document.getElementById('modal-subheader');
+            
+            // Update subheader
+            if (isFirstCard) {
+                subheader.textContent = 'This will be your first card (placed at origin 0,0,0)';
+            } else {
+                subheader.textContent = `Adding from current card: ${currentCard.num}`;
+            }
+            
+            console.log('Opening modal - isFirstCard:', isFirstCard, 'Cards count:', state.cards.length);
+            
+            directionButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.disabled = isFirstCard;
+                console.log('Button', btn.dataset.direction, 'disabled:', btn.disabled);
+            });
+            
+            // Reset orientation buttons to landscape
+            orientationButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.orientation === 'landscape');
+            });
+            
+            // Update label to show if direction is required
+            if (isFirstCard) {
+                directionLabel.textContent = 'Direction (not needed for first card)';
+                directionLabel.classList.remove('required');
+            } else {
+                directionLabel.textContent = 'Direction';
+                directionLabel.classList.add('required');
+            }
+
+            updateSaveButton();
+            cardNumberInput.focus();
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+        }
+
+        // Card number input - auto-pad to 3 digits
+        cardNumberInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, ''); // Only digits
+            if (value.length > 3) value = value.slice(0, 3);
+            e.target.value = value;
+            updateSaveButton();
+        });
+
+        cardNumberInput.addEventListener('blur', (e) => {
+            if (e.target.value.length > 0) {
+                e.target.value = padCardNumber(e.target.value);
+            }
+        });
+
+        // Direction button selection
+        directionButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (btn.disabled) {
+                    console.log('Button is disabled');
+                    return;
+                }
+                
+                directionButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedDirection = btn.dataset.direction;
+                updateSaveButton();
+                console.log('Selected direction:', selectedDirection);
+            });
+        });
+
+        // Orientation button selection
+        orientationButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                orientationButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedOrientation = btn.dataset.orientation;
+                console.log('Selected orientation:', selectedOrientation);
+            });
+        });
+
+        function updateSaveButton() {
+            const hasNumber = cardNumberInput.value.length === 3;
+            const hasDirection = selectedDirection !== null || state.cards.length === 0;
+            const shouldEnable = hasNumber && hasDirection;
+            saveButton.disabled = !shouldEnable;
+            
+            console.log('Save button update:', {
+                hasNumber,
+                hasDirection,
+                shouldEnable,
+                disabled: saveButton.disabled,
+                cardsLength: state.cards.length
+            });
+        }
+
+        saveButton.addEventListener('click', saveCard);
+
+        function saveCard() {
+            console.log('=== SAVE CARD CLICKED ===');
+            console.log('Card number input:', cardNumberInput.value);
+            console.log('Selected direction:', selectedDirection);
+            console.log('Current cards:', state.cards.length);
+            
+            try {
+                const cardNum = padCardNumber(cardNumberInput.value);
+                const note = cardNoteInput.value.trim();
+                const currentCard = getCurrentCard();
+                const oldCurrentCardId = state.currentCardId; // Save for rollback
+
+                console.log('Padded card number:', cardNum);
+                console.log('Current card:', currentCard);
+
+                // Check if card already exists
+                let card = getCardByNumber(cardNum);
+                let isNewCard = false;
+                let newLink = null;
+                
+                if (card && state.cards.length > 0 && !currentCard) {
+                    console.error('Cannot add link without current card');
+                    showToast('Error: Cannot add link without a current card', 'error');
+                    return;
+                }
+
+                // Create new card or link to existing
+                if (!card) {
+                    isNewCard = true;
+                    card = {
+                        id: generateId('card'),
+                        num: cardNum,
+                        note: note,
+                        x: null,
+                        y: null,
+                        z: null,
+                        orientation: selectedOrientation,
+                        positioned: false,
+                        manuallyPositioned: false
+                    };
+                    state.cards.push(card);
+                    console.log('Created new card:', card);
+                } else {
+                    // Linking to existing card - preserve its manual positioning flag
+                    console.log('Linking to existing card:', card.num, 'manuallyPositioned:', card.manuallyPositioned);
+                }
+
+                // Create link if not first card
+                if (currentCard && selectedDirection) {
+                    newLink = {
+                        id: generateId('link'),
+                        from: currentCard.id,
+                        to: card.id,
+                        kind: selectedDirection,
+                        certified: true
+                    };
+                    state.links.push(newLink);
+                    console.log('Created link:', newLink);
+                    
+                    // If this is a cardinal connection (not "other"), clear manual positioning
+                    // for both cards so they can be repositioned to be properly adjacent
+                    if (selectedDirection !== 'other') {
+                        console.log('Cardinal link created - clearing manual positioning to allow proper adjacency');
+                        
+                        // Get groups before the link (they might merge after)
+                        const groups = getCardinalConnectivityGroups();
+                        
+                        // Find which groups contain these cards
+                        let fromGroup = null;
+                        let toGroup = null;
+                        for (const group of groups) {
+                            if (group.has(currentCard.id)) fromGroup = group;
+                            if (group.has(card.id)) toGroup = group;
+                        }
+                        
+                        // If connecting two different groups, reposition to be properly adjacent
+                        if (fromGroup !== toGroup && fromGroup && toGroup) {
+                            console.log('Linking two separate groups - repositioning to be adjacent');
+                            
+                            // Clear positions and manual flags for the "to" group so it can be repositioned
+                            for (const cardId of toGroup) {
+                                const groupCard = getCardById(cardId);
+                                if (groupCard) {
+                                    groupCard.x = null;
+                                    groupCard.y = null;
+                                    groupCard.z = null;
+                                    groupCard.positioned = false;
+                                    groupCard.manuallyPositioned = false;
+                                    console.log('Cleared position for card:', groupCard.num);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Set as current card
+                state.currentCardId = card.id;
+                console.log('Set current card to:', card.id);
+
+                // Run solver
+                console.log('Running layout solver...');
+                solveLayout();
+
+                // Check if the new card was successfully positioned (no collision)
+                // Only check for new cards - existing cards may already be positioned
+                if (isNewCard && card.x === null && state.cards.length > 1) {
+                    console.error('New card was not positioned - collision detected');
+                    
+                    // Rollback changes - only remove if it's a NEW card
+                    const cardIndex = state.cards.indexOf(card);
+                    state.cards.splice(cardIndex, 1);
+                    console.log('Removed new card due to collision');
+                    
+                    if (newLink) {
+                        const linkIndex = state.links.indexOf(newLink);
+                        state.links.splice(linkIndex, 1);
+                        console.log('Removed link due to collision');
+                    }
+                    
+                    // Restore old current card
+                    state.currentCardId = oldCurrentCardId;
+                    console.log('Restored current card to:', oldCurrentCardId);
+                    
+                    render();
+                    return; // Don't close modal, let user try again
+                }
+                
+                // For existing cards being linked, they should already have a position
+                // If linking to an existing card, just create the link and we're done
+                if (!isNewCard && card.x !== null) {
+                    console.log('Successfully linked to existing card:', card.num);
+                    // Link was created, card exists and is positioned, all good
+                }
+
+                // Update meta
+                state.meta.lastModified = new Date().toISOString();
+
+                // Save and render
+                console.log('Saving to localStorage...');
+                saveToLocalStorage();
+                
+                console.log('Centering on new card...');
+                centerOnCard(card, 0.8);
+
+                console.log('Closing modal...');
+                closeModal();
+                
+                const dirText = selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : ' (origin)';
+                showToast(`Added ${cardNum}${dirText}`, 'success');
+                
+                // Update layer selector with new z-levels
+                updateLayerSelector();
+                
+                // Save to history for undo/redo
+                saveHistory();
+                
+                console.log('=== SAVE COMPLETE ===');
+            } catch (error) {
+                console.error('Error in saveCard:', error);
+                showToast('Error saving card: ' + error.message, 'error');
+            }
+        }
+
+        // ===== RENDERING =====
+        const canvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+
+        const CELL_SIZE = 220; // Space between card centers
+        const CARD_WIDTH = 200;
+        const CARD_HEIGHT = 120;
+
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            render();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function render() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+
+            // Apply zoom and pan
+            ctx.translate(state.view.offsetX, state.view.offsetY);
+            ctx.scale(state.view.zoom, state.view.zoom);
+
+            // Center the origin
+            const originX = canvas.width / (2 * state.view.zoom);
+            const originY = canvas.height / (2 * state.view.zoom);
+            ctx.translate(originX, originY);
+
+            // Apply layer transition opacity
+            if (isLayerTransitioning) {
+                ctx.globalAlpha = layerTransitionOpacity;
+            }
+
+            // Draw grid
+            drawGrid(ctx, originX, originY);
+
+            // Get active layer
+            const activeLayer = state.view.activeLayer;
+
+            // Calculate implied connections
+            const impliedConnections = calculateImpliedConnections();
+
+            // Draw all connections (but not vertical ones - those are shown as arrows on cards)
+            const allConnections = [...state.links, ...impliedConnections];
+            
+            allConnections.forEach(link => {
+                const fromCard = getCardById(link.from);
+                const toCard = getCardById(link.to);
+                
+                if (fromCard && toCard && fromCard.x !== null && toCard.x !== null) {
+                    // Skip vertical connections (up/down) - shown as arrows on cards
+                    if (link.kind === 'up' || link.kind === 'down') return;
+                    
+                    // Only draw if both cards are on active layer
+                    if (fromCard.z === activeLayer && toCard.z === activeLayer) {
+                        drawConnection(ctx, fromCard, toCard, link);
+                    }
+                }
+            });
+
+            // Draw cards (only on active layer)
+            state.cards.forEach(card => {
+                if (card.x !== null && card.z === activeLayer) {
+                    const isCurrent = card.id === state.currentCardId;
+                    drawCard(ctx, card, isCurrent, allConnections);
+                }
+            });
+
+            ctx.restore();
+        }
+
+        function drawGrid(ctx, originX, originY) {
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 1;
+
+            const gridSize = CELL_SIZE;
+            const extent = 20;
+
+            for (let i = -extent; i <= extent; i++) {
+                // Vertical lines
+                ctx.beginPath();
+                ctx.moveTo(i * gridSize, -extent * gridSize);
+                ctx.lineTo(i * gridSize, extent * gridSize);
+                ctx.stroke();
+
+                // Horizontal lines
+                ctx.beginPath();
+                ctx.moveTo(-extent * gridSize, i * gridSize);
+                ctx.lineTo(extent * gridSize, i * gridSize);
+                ctx.stroke();
+            }
+        }
+
+        function drawCard(ctx, card, isCurrent, allConnections) {
+            const x = card.x * CELL_SIZE;
+            const y = card.y * CELL_SIZE;
+
+            // Determine card dimensions based on orientation
+            const isPortrait = card.orientation === 'portrait';
+            const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+            const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+
+            ctx.save();
+
+            // Shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
+            ctx.shadowBlur = 10;
+            ctx.shadowOffsetY = 4;
+
+            // Card background
+            ctx.fillStyle = 'white';
+            roundRect(ctx, x - cardW/2, y - cardH/2, cardW, cardH, 16);
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+
+            // Current card border
+            if (isCurrent) {
+                ctx.strokeStyle = '#0EA5E9';
+                ctx.lineWidth = 3;
+                roundRect(ctx, x - cardW/2, y - cardH/2, cardW, cardH, 16);
+                ctx.stroke();
+            }
+
+            // Check for up/down connections and get connected card numbers
+            let upConnectionCard = null;
+            let downConnectionCard = null;
+            let crossLayerOtherCard = null;
+            
+            for (const link of allConnections) {
+                if (!link.certified) continue;
+                
+                if (link.from === card.id && link.kind === 'up') {
+                    upConnectionCard = getCardById(link.to);
+                } else if (link.to === card.id && link.kind === 'down') {
+                    upConnectionCard = getCardById(link.from);
+                } else if (link.from === card.id && link.kind === 'down') {
+                    downConnectionCard = getCardById(link.to);
+                } else if (link.to === card.id && link.kind === 'up') {
+                    downConnectionCard = getCardById(link.from);
+                } else if (link.kind === 'other') {
+                    // Check for cross-layer "other" connections
+                    let otherCard = null;
+                    if (link.from === card.id) {
+                        otherCard = getCardById(link.to);
+                    } else if (link.to === card.id) {
+                        otherCard = getCardById(link.from);
+                    }
+                    
+                    // Only show if on different z-layer
+                    if (otherCard && otherCard.z !== null && otherCard.z !== card.z) {
+                        crossLayerOtherCard = otherCard;
+                    }
+                }
+            }
+
+            // Draw up arrow at top left if there's an up connection
+            if (upConnectionCard) {
+                const circleRadius = 16;
+                const circleX = x - cardW/2 + circleRadius + 6;
+                const circleY = y - cardH/2 + circleRadius + 6;
+                
+                // Circle background
+                ctx.fillStyle = '#8B5CF6'; // Purple for up
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Arrow
+                ctx.fillStyle = 'white';
+                const arrowSize = 7;
+                ctx.beginPath();
+                ctx.moveTo(circleX, circleY - arrowSize);
+                ctx.lineTo(circleX - arrowSize, circleY + arrowSize/2);
+                ctx.lineTo(circleX + arrowSize, circleY + arrowSize/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Card number next to arrow
+                ctx.fillStyle = '#8B5CF6';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(upConnectionCard.num, circleX + circleRadius + 4, circleY);
+            }
+
+            // Draw down arrow at bottom left if there's a down connection
+            if (downConnectionCard) {
+                const circleRadius = 16;
+                const circleX = x - cardW/2 + circleRadius + 6;
+                const circleY = y + cardH/2 - circleRadius - 6;
+                
+                // Circle background
+                ctx.fillStyle = '#10B981'; // Green for down
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Arrow
+                ctx.fillStyle = 'white';
+                const arrowSize = 7;
+                ctx.beginPath();
+                ctx.moveTo(circleX, circleY + arrowSize);
+                ctx.lineTo(circleX - arrowSize, circleY - arrowSize/2);
+                ctx.lineTo(circleX + arrowSize, circleY - arrowSize/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Card number next to arrow
+                ctx.fillStyle = '#10B981';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(downConnectionCard.num, circleX + circleRadius + 4, circleY);
+            }
+            
+            // Draw portal/cross-layer icon at bottom right if there's a cross-layer "other" connection
+            if (crossLayerOtherCard) {
+                const circleRadius = 16;
+                const circleX = x + cardW/2 - circleRadius - 6;
+                const circleY = y + cardH/2 - circleRadius - 6;
+                
+                // Circle background
+                ctx.fillStyle = '#EF4444'; // Red for cross-layer portal
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // White star
+                ctx.fillStyle = 'white';
+                const starRadius = 8;
+                const starPoints = 5;
+                ctx.beginPath();
+                for (let i = 0; i < starPoints * 2; i++) {
+                    const angle = (i * Math.PI) / starPoints - Math.PI / 2;
+                    const radius = i % 2 === 0 ? starRadius : starRadius * 0.4;
+                    const sx = circleX + Math.cos(angle) * radius;
+                    const sy = circleY + Math.sin(angle) * radius;
+                    if (i === 0) {
+                        ctx.moveTo(sx, sy);
+                    } else {
+                        ctx.lineTo(sx, sy);
+                    }
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // Card number to the left of the icon
+                ctx.fillStyle = '#EF4444';
+                ctx.font = '10px Inter, sans-serif';
+                ctx.textAlign = 'right';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(crossLayerOtherCard.num, circleX - circleRadius - 4, circleY);
+            }
+
+            // Card number
+            ctx.fillStyle = '#0F172A';
+            ctx.font = `bold 48px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(card.num, x, y - 15);
+
+            // Note
+            if (card.note) {
+                ctx.fillStyle = '#64748B';
+                ctx.font = `14px Inter, sans-serif`;
+                ctx.fillText(card.note, x, y + 25);
+            }
+
+            // Z badge
+            if (card.z !== 0) {
+                const badge = card.z > 0 ? `z+${card.z}` : `z${card.z}`;
+                ctx.fillStyle = card.z > 0 ? '#8B5CF6' : '#F59E0B';
+                ctx.font = `12px Inter, sans-serif`;
+                ctx.textAlign = 'right';
+                ctx.fillText(badge, x + cardW/2 - 10, y - cardH/2 + 15);
+            }
+
+            ctx.restore();
+        }
+
+        function roundRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+        }
+
+        function drawConnection(ctx, fromCard, toCard, link) {
+            const x1 = fromCard.x * CELL_SIZE;
+            const y1 = fromCard.y * CELL_SIZE;
+            const x2 = toCard.x * CELL_SIZE;
+            const y2 = toCard.y * CELL_SIZE;
+
+            const isCertified = link.certified;
+            const isVertical = link.kind === 'up' || link.kind === 'down';
+            const isOther = link.kind === 'other';
+
+            ctx.save();
+
+            if (isOther) {
+                // "Other" connections are always red
+                ctx.strokeStyle = '#EF4444';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([]);
+            } else if (isCertified) {
+                ctx.strokeStyle = '#10B981';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([]);
+            } else {
+                ctx.strokeStyle = '#3B82F6';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([8, 4]);
+            }
+
+            if (isOther) {
+                // Dynamic curved routing to avoid card collisions
+                const path = calculateRoutedPath(fromCard, toCard, x1, y1, x2, y2);
+                drawRoutedPath(ctx, path);
+            } else if (isVertical) {
+                // Curved line for vertical (up/down)
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+                const controlOffset = 50;
+
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.quadraticCurveTo(midX, midY - controlOffset, x2, y2);
+                ctx.stroke();
+
+                // Arrow for vertical
+                const arrowSize = 10;
+                ctx.fillStyle = link.kind === 'up' ? '#10B981' : '#8B5CF6';
+                ctx.beginPath();
+                if (link.kind === 'up') {
+                    // Up arrow
+                    ctx.moveTo(midX, midY - controlOffset - arrowSize);
+                    ctx.lineTo(midX - arrowSize, midY - controlOffset);
+                    ctx.lineTo(midX + arrowSize, midY - controlOffset);
+                } else {
+                    // Down arrow
+                    ctx.moveTo(midX, midY - controlOffset + arrowSize);
+                    ctx.lineTo(midX - arrowSize, midY - controlOffset);
+                    ctx.lineTo(midX + arrowSize, midY - controlOffset);
+                }
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Straight line for cardinal directions
+                ctx.beginPath();
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function calculateRoutedPath(fromCard, toCard, x1, y1, x2, y2) {
+            // Get all cards on the same z-level that could block the path
+            const activeLayer = state.view.activeLayer;
+            const obstacles = state.cards.filter(card => 
+                card.x !== null && 
+                card.z === activeLayer &&
+                card.id !== fromCard.id && 
+                card.id !== toCard.id
+            );
+
+            // Start with a simple curved path
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            const baseOffset = Math.max(distance * 0.6, 350); // Larger offset for better routing
+            
+            // Perpendicular vector to the line from (x1,y1) to (x2,y2)
+            const perpX = -dy / distance;
+            const perpY = dx / distance;
+            
+            // Try different curve directions to avoid obstacles
+            const attempts = [
+                // Perpendicular curves (most natural)
+                { x: midX + perpX * baseOffset, y: midY + perpY * baseOffset },
+                { x: midX - perpX * baseOffset, y: midY - perpY * baseOffset },
+                { x: midX + perpX * baseOffset * 1.5, y: midY + perpY * baseOffset * 1.5 },
+                { x: midX - perpX * baseOffset * 1.5, y: midY - perpY * baseOffset * 1.5 },
+                { x: midX + perpX * baseOffset * 2, y: midY + perpY * baseOffset * 2 },
+                { x: midX - perpX * baseOffset * 2, y: midY - perpY * baseOffset * 2 },
+                { x: midX + perpX * baseOffset * 2.5, y: midY + perpY * baseOffset * 2.5 },
+                { x: midX - perpX * baseOffset * 2.5, y: midY - perpY * baseOffset * 2.5 },
+                // Cardinal directions (fallback)
+                { x: midX, y: midY - baseOffset }, 
+                { x: midX, y: midY + baseOffset },
+                { x: midX - baseOffset, y: midY },
+                { x: midX + baseOffset, y: midY },
+                { x: midX, y: midY - baseOffset * 1.5 },
+                { x: midX, y: midY + baseOffset * 1.5 },
+                { x: midX - baseOffset * 1.5, y: midY },
+                { x: midX + baseOffset * 1.5, y: midY },
+            ];
+
+            // Find the first control point that doesn't intersect obstacles
+            let bestControl = attempts[0];
+            let minCollisions = Infinity;
+
+            for (const control of attempts) {
+                const collisions = countPathCollisions(x1, y1, control.x, control.y, x2, y2, obstacles);
+                if (collisions < minCollisions) {
+                    minCollisions = collisions;
+                    bestControl = control;
+                    if (collisions === 0) break; // Found a clear path
+                }
+            }
+
+            // If still colliding, add waypoints
+            if (minCollisions > 0) {
+                return calculateMultiSegmentPath(x1, y1, x2, y2, obstacles);
+            }
+
+            return [{ x: x1, y: y1 }, bestControl, { x: x2, y: y2 }];
+        }
+
+        function countPathCollisions(x1, y1, cx, cy, x2, y2, obstacles) {
+            let collisions = 0;
+            const samples = 50; // More samples for better detection
+
+            for (let i = 0; i <= samples; i++) {
+                const t = i / samples;
+                // Quadratic Bezier curve formula
+                const x = (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2;
+                const y = (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2;
+
+                for (const obstacle of obstacles) {
+                    const ox = obstacle.x * CELL_SIZE;
+                    const oy = obstacle.y * CELL_SIZE;
+                    const isPortrait = obstacle.orientation === 'portrait';
+                    const ow = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                    const oh = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+
+                    // Check if point is inside obstacle (with much larger padding for clearance)
+                    const padding = 120; // Much larger padding to keep curves well clear of corners
+                    if (x >= ox - ow/2 - padding && x <= ox + ow/2 + padding &&
+                        y >= oy - oh/2 - padding && y <= oy + oh/2 + padding) {
+                        collisions++;
+                    }
+                }
+            }
+
+            return collisions;
+        }
+
+        function calculateMultiSegmentPath(x1, y1, x2, y2, obstacles) {
+            // Create a path that goes around obstacles
+            // Simple approach: route perpendicular to the direct line
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Perpendicular offset
+            const perpX = -dy / distance;
+            const perpY = dx / distance;
+            const offset = 450; // Much larger offset for wider curves around obstacles
+
+            // Try routing above or below
+            const waypoint1 = { x: x1 + dx * 0.33 + perpX * offset, y: y1 + dy * 0.33 + perpY * offset };
+            const waypoint2 = { x: x1 + dx * 0.66 + perpX * offset, y: y1 + dy * 0.66 + perpY * offset };
+
+            const collisions1 = countPathCollisions(x1, y1, waypoint1.x, waypoint1.y, waypoint2.x, waypoint2.y, obstacles) +
+                               countPathCollisions(waypoint1.x, waypoint1.y, waypoint2.x, waypoint2.y, x2, y2, obstacles);
+
+            // Try opposite direction
+            const waypoint3 = { x: x1 + dx * 0.33 - perpX * offset, y: y1 + dy * 0.33 - perpY * offset };
+            const waypoint4 = { x: x1 + dx * 0.66 - perpX * offset, y: y1 + dy * 0.66 - perpY * offset };
+
+            const collisions2 = countPathCollisions(x1, y1, waypoint3.x, waypoint3.y, waypoint4.x, waypoint4.y, obstacles) +
+                               countPathCollisions(waypoint3.x, waypoint3.y, waypoint4.x, waypoint4.y, x2, y2, obstacles);
+
+            if (collisions2 < collisions1) {
+                return [{ x: x1, y: y1 }, waypoint3, waypoint4, { x: x2, y: y2 }];
+            } else {
+                return [{ x: x1, y: y1 }, waypoint1, waypoint2, { x: x2, y: y2 }];
+            }
+        }
+
+        function drawRoutedPath(ctx, path) {
+            if (path.length < 2) return;
+
+            ctx.beginPath();
+            ctx.moveTo(path[0].x, path[0].y);
+
+            if (path.length === 2) {
+                // Straight line
+                ctx.lineTo(path[1].x, path[1].y);
+            } else if (path.length === 3) {
+                // Single quadratic curve
+                ctx.quadraticCurveTo(path[1].x, path[1].y, path[2].x, path[2].y);
+            } else {
+                // Multiple segments with smooth curves
+                for (let i = 1; i < path.length - 1; i++) {
+                    const curr = path[i];
+                    const next = path[i + 1];
+                    const midX = (curr.x + next.x) / 2;
+                    const midY = (curr.y + next.y) / 2;
+                    ctx.quadraticCurveTo(curr.x, curr.y, midX, midY);
+                }
+                // Final segment
+                const last = path[path.length - 1];
+                const secondLast = path[path.length - 2];
+                ctx.quadraticCurveTo(secondLast.x, secondLast.y, last.x, last.y);
+            }
+
+            ctx.stroke();
+        }
+
+        // ===== ZOOM & PAN =====
+        let isPanning = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let hasDragged = false;
+
+        // ===== GROUP DRAGGING =====
+        let isDraggingGroup = false;
+        let draggedGroup = null;
+        let dragStartPos = { x: 0, y: 0 };
+        let groupStartPositions = new Map();
+
+        // Set initial cursor
+        canvas.style.cursor = 'grab';
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (isModalOpen()) return;
+            
+            if (e.key === '0') {
+                zoomToFit();
+            }
+            
+            // Undo: Ctrl+Z (or Cmd+Z on Mac)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                undo();
+            }
+            
+            // Redo: Ctrl+Y or Ctrl+Shift+Z (or Cmd equivalents on Mac)
+            if (((e.ctrlKey || e.metaKey) && e.key === 'y') || 
+                ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z')) {
+                e.preventDefault();
+                redo();
+            }
+        });
+
+        // Mouse button handlers
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) { // Left click - pan
+                isPanning = true;
+                hasDragged = false;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+                e.preventDefault();
+            } else if (e.button === 2) { // Right click - drag group
+                e.preventDefault();
+                
+                // Get world coordinates
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const originX = canvas.width / (2 * state.view.zoom);
+                const originY = canvas.height / (2 * state.view.zoom);
+                
+                const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+                const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
+                
+                // Find clicked card
+                const activeLayer = state.view.activeLayer;
+                for (const card of state.cards) {
+                    if (card.x === null || card.z !== activeLayer) continue;
+                    
+                    const cardX = card.x * CELL_SIZE;
+                    const cardY = card.y * CELL_SIZE;
+                    
+                    const isPortrait = card.orientation === 'portrait';
+                    const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                    const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                    
+                    if (worldX >= cardX - cardW/2 && worldX <= cardX + cardW/2 &&
+                        worldY >= cardY - cardH/2 && worldY <= cardY + cardH/2) {
+                        
+                        // Found the card - find its group
+                        const groups = getCardinalConnectivityGroups();
+                        for (const group of groups) {
+                            if (group.has(card.id)) {
+                                isDraggingGroup = true;
+                                draggedGroup = group;
+                                dragStartPos = { x: worldX, y: worldY };
+                                
+                                // Store original positions
+                                groupStartPositions.clear();
+                                for (const cardId of group) {
+                                    const groupCard = getCardById(cardId);
+                                    if (groupCard && groupCard.x !== null) {
+                                        groupStartPositions.set(cardId, {
+                                            x: groupCard.x,
+                                            y: groupCard.y
+                                        });
+                                    }
+                                }
+                                
+                                canvas.style.cursor = 'move';
+                                hasDragged = false;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDraggingGroup) {
+                // Get current world coordinates
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const originX = canvas.width / (2 * state.view.zoom);
+                const originY = canvas.height / (2 * state.view.zoom);
+                
+                const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+                const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
+                
+                // Calculate offset from drag start
+                const deltaX = worldX - dragStartPos.x;
+                const deltaY = worldY - dragStartPos.y;
+                
+                // Update all cards in the group
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    const startPos = groupStartPositions.get(cardId);
+                    if (card && startPos) {
+                        // Move card (in world coordinates, not snapped yet)
+                        card.x = startPos.x + deltaX / CELL_SIZE;
+                        card.y = startPos.y + deltaY / CELL_SIZE;
+                    }
+                }
+                
+                hasDragged = true;
+                render();
+            } else if (isPanning) {
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                    hasDragged = true;
+                }
+                state.view.offsetX += dx;
+                state.view.offsetY += dy;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                render();
+            } else {
+                // Check if hovering over an arrow or portal icon
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const originX = canvas.width / (2 * state.view.zoom);
+                const originY = canvas.height / (2 * state.view.zoom);
+                
+                const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+                const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
+                
+                const activeLayer = state.view.activeLayer;
+                const allConnections = [...state.links, ...calculateImpliedConnections()];
+                let isOverInteractive = false;
+                
+                for (const card of state.cards) {
+                    if (card.x === null || card.z !== activeLayer) continue;
+                    
+                    const cardX = card.x * CELL_SIZE;
+                    const cardY = card.y * CELL_SIZE;
+                    
+                    const isPortrait = card.orientation === 'portrait';
+                    const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                    const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                    
+                    // Check for up/down/portal connections
+                    let upConnectionCard = null;
+                    let downConnectionCard = null;
+                    let crossLayerOtherCard = null;
+                    
+                    for (const link of allConnections) {
+                        if (!link.certified) continue;
+                        if (link.from === card.id && link.kind === 'up') {
+                            upConnectionCard = getCardById(link.to);
+                        } else if (link.to === card.id && link.kind === 'down') {
+                            upConnectionCard = getCardById(link.from);
+                        } else if (link.from === card.id && link.kind === 'down') {
+                            downConnectionCard = getCardById(link.to);
+                        } else if (link.to === card.id && link.kind === 'up') {
+                            downConnectionCard = getCardById(link.from);
+                        } else if (link.kind === 'other') {
+                            let otherCard = null;
+                            if (link.from === card.id) {
+                                otherCard = getCardById(link.to);
+                            } else if (link.to === card.id) {
+                                otherCard = getCardById(link.from);
+                            }
+                            
+                            if (otherCard && otherCard.z !== null && otherCard.z !== card.z) {
+                                crossLayerOtherCard = otherCard;
+                            }
+                        }
+                    }
+                    
+                    // Check portal icon
+                    if (crossLayerOtherCard) {
+                        const circleRadius = 16;
+                        const circleX = cardX + cardW/2 - circleRadius - 6;
+                        const circleY = cardY + cardH/2 - circleRadius - 6;
+                        const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                        if (dist <= circleRadius) {
+                            isOverInteractive = true;
+                            break;
+                        }
+                    }
+                    
+                    // Check up arrow
+                    if (upConnectionCard) {
+                        const circleRadius = 16;
+                        const circleX = cardX - cardW/2 + circleRadius + 6;
+                        const circleY = cardY - cardH/2 + circleRadius + 6;
+                        const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                        if (dist <= circleRadius) {
+                            isOverInteractive = true;
+                            break;
+                        }
+                    }
+                    
+                    // Check down arrow
+                    if (downConnectionCard) {
+                        const circleRadius = 16;
+                        const circleX = cardX - cardW/2 + circleRadius + 6;
+                        const circleY = cardY + cardH/2 - circleRadius - 6;
+                        const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                        if (dist <= circleRadius) {
+                            isOverInteractive = true;
+                            break;
+                        }
+                    }
+                }
+                
+                canvas.style.cursor = isOverInteractive ? 'pointer' : 'grab';
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                isPanning = false;
+                // Cursor will be updated by mousemove
+            } else if (e.button === 2) {
+                if (isDraggingGroup) {
+                    // Snap all cards in the group to grid
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        if (card && card.x !== null) {
+                            card.x = Math.round(card.x);
+                            card.y = Math.round(card.y);
+                        }
+                    }
+                    
+                    // Check for collisions with other cards
+                    let hasCollision = false;
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        if (card && card.x !== null) {
+                            // Check if this position collides with any card NOT in the dragged group
+                            for (const otherCard of state.cards) {
+                                if (draggedGroup.has(otherCard.id)) continue; // Skip cards in same group
+                                if (otherCard.x === card.x && otherCard.y === card.y && otherCard.z === card.z) {
+                                    hasCollision = true;
+                                    break;
+                                }
+                            }
+                            if (hasCollision) break;
+                        }
+                    }
+                    
+                    if (hasCollision) {
+                        // Collision detected - restore original positions
+                        for (const cardId of draggedGroup) {
+                            const card = getCardById(cardId);
+                            const startPos = groupStartPositions.get(cardId);
+                            if (card && startPos) {
+                                card.x = startPos.x;
+                                card.y = startPos.y;
+                            }
+                        }
+                        showToast('Cannot place group here - cards would overlap', 'error');
+                        render();
+                    } else {
+                        // No collision - mark as manually positioned
+                        for (const cardId of draggedGroup) {
+                            const card = getCardById(cardId);
+                            if (card && card.x !== null) {
+                                card.manuallyPositioned = true;
+                            }
+                        }
+                        
+                        // Save changes
+                        saveToLocalStorage();
+                        saveHistory();
+                        render();
+                    }
+                    
+                    isDraggingGroup = false;
+                    draggedGroup = null;
+                    groupStartPositions.clear();
+                    canvas.style.cursor = 'grab';
+                }
+            }
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            if (isDraggingGroup) {
+                // Snap to grid
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    if (card && card.x !== null) {
+                        card.x = Math.round(card.x);
+                        card.y = Math.round(card.y);
+                    }
+                }
+                
+                // Check for collisions
+                let hasCollision = false;
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    if (card && card.x !== null) {
+                        for (const otherCard of state.cards) {
+                            if (draggedGroup.has(otherCard.id)) continue;
+                            if (otherCard.x === card.x && otherCard.y === card.y && otherCard.z === card.z) {
+                                hasCollision = true;
+                                break;
+                            }
+                        }
+                        if (hasCollision) break;
+                    }
+                }
+                
+                if (hasCollision) {
+                    // Restore original positions
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        const startPos = groupStartPositions.get(cardId);
+                        if (card && startPos) {
+                            card.x = startPos.x;
+                            card.y = startPos.y;
+                        }
+                    }
+                    showToast('Cannot place group here - cards would overlap', 'error');
+                } else {
+                    // Mark as manually positioned
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        if (card && card.x !== null) {
+                            card.manuallyPositioned = true;
+                        }
+                    }
+                    saveToLocalStorage();
+                    saveHistory();
+                }
+                
+                isDraggingGroup = false;
+                draggedGroup = null;
+                groupStartPositions.clear();
+                render();
+            }
+            isPanning = false;
+            canvas.style.cursor = 'grab';
+        });
+
+        // Double-click detection for setting current card
+        let lastClickTime = 0;
+        let lastClickedCard = null;
+
+        canvas.addEventListener('dblclick', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Convert to world coordinates
+            const originX = canvas.width / (2 * state.view.zoom);
+            const originY = canvas.height / (2 * state.view.zoom);
+            
+            const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+            const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
+            
+            // Check if clicking on a card
+            const activeLayer = state.view.activeLayer;
+            
+            for (const card of state.cards) {
+                if (card.x === null || card.z !== activeLayer) continue;
+                
+                const cardX = card.x * CELL_SIZE;
+                const cardY = card.y * CELL_SIZE;
+                
+                const isPortrait = card.orientation === 'portrait';
+                const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                
+                // Check if click is within card bounds
+                if (worldX >= cardX - cardW/2 && worldX <= cardX + cardW/2 &&
+                    worldY >= cardY - cardH/2 && worldY <= cardY + cardH/2) {
+                    
+                    // Set as current card
+                    state.currentCardId = card.id;
+                    saveToLocalStorage();
+                    render();
+                    showToast(`Set ${card.num} as current card`, 'success');
+                    return;
+                }
+            }
+        });
+
+        // Click detection for layer arrows and portal icons
+        canvas.addEventListener('click', (e) => {
+            if (hasDragged) return; // Don't trigger on drag
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            // Convert to world coordinates
+            const originX = canvas.width / (2 * state.view.zoom);
+            const originY = canvas.height / (2 * state.view.zoom);
+            
+            const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+            const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
+            
+            // Check each card for arrow/portal clicks
+            const activeLayer = state.view.activeLayer;
+            const allConnections = [...state.links, ...calculateImpliedConnections()];
+            
+            for (const card of state.cards) {
+                if (card.x === null || card.z !== activeLayer) continue;
+                
+                const cardX = card.x * CELL_SIZE;
+                const cardY = card.y * CELL_SIZE;
+                
+                const isPortrait = card.orientation === 'portrait';
+                const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                
+                // Check for up/down/portal connections
+                let upConnectionCard = null;
+                let downConnectionCard = null;
+                let crossLayerOtherCard = null;
+                
+                for (const link of allConnections) {
+                    if (!link.certified) continue;
+                    if (link.from === card.id && link.kind === 'up') {
+                        upConnectionCard = getCardById(link.to);
+                    } else if (link.to === card.id && link.kind === 'down') {
+                        upConnectionCard = getCardById(link.from);
+                    } else if (link.from === card.id && link.kind === 'down') {
+                        downConnectionCard = getCardById(link.to);
+                    } else if (link.to === card.id && link.kind === 'up') {
+                        downConnectionCard = getCardById(link.from);
+                    } else if (link.kind === 'other') {
+                        // Check for cross-layer "other" connections
+                        let otherCard = null;
+                        if (link.from === card.id) {
+                            otherCard = getCardById(link.to);
+                        } else if (link.to === card.id) {
+                            otherCard = getCardById(link.from);
+                        }
+                        
+                        if (otherCard && otherCard.z !== null && otherCard.z !== card.z) {
+                            crossLayerOtherCard = otherCard;
+                        }
+                    }
+                }
+                
+                // Check for portal icon (bottom right)
+                if (crossLayerOtherCard) {
+                    const circleRadius = 16;
+                    const circleX = cardX + cardW/2 - circleRadius - 6;
+                    const circleY = cardY + cardH/2 - circleRadius - 6;
+                    const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                    
+                    if (dist <= circleRadius) {
+                        // Clicked portal - navigate to connected card on different layer
+                        centerOnCard(crossLayerOtherCard, 0.8, false, true);
+                        showToast(`Portal to ${crossLayerOtherCard.num} on ${getLayerName(crossLayerOtherCard.z)}`, 'success');
+                        return;
+                    }
+                }
+                
+                // Check for up arrow
+                if (upConnectionCard) {
+                    const circleRadius = 16;
+                    const circleX = cardX - cardW/2 + circleRadius + 6;
+                    const circleY = cardY - cardH/2 + circleRadius + 6;
+                    const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                    
+                    if (dist <= circleRadius) {
+                        // Clicked up arrow - go to layer above with transition
+                        const newLayer = activeLayer + 1;
+                        transitionToLayer(newLayer);
+                        showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
+                        return;
+                    }
+                }
+                
+                // Check for down arrow
+                if (downConnectionCard) {
+                    const circleRadius = 16;
+                    const circleX = cardX - cardW/2 + circleRadius + 6;
+                    const circleY = cardY + cardH/2 - circleRadius - 6;
+                    const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                    
+                    if (dist <= circleRadius) {
+                        // Clicked down arrow - go to layer below with transition
+                        const newLayer = activeLayer - 1;
+                        transitionToLayer(newLayer);
+                        showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
+                        return;
+                    }
+                }
+            }
+        });
+
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Mouse wheel zoom (centered on screen center)
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            
+            // Get center of screen
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+
+            // Calculate world position at center before zoom
+            const originX = canvas.width / (2 * state.view.zoom);
+            const originY = canvas.height / (2 * state.view.zoom);
+            
+            const worldX = (centerX - state.view.offsetX) / state.view.zoom - originX;
+            const worldY = (centerY - state.view.offsetY) / state.view.zoom - originY;
+
+            // Apply zoom
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            state.view.zoom = Math.max(0.1, Math.min(5, state.view.zoom * zoomFactor));
+
+            // Calculate new origin position
+            const newOriginX = canvas.width / (2 * state.view.zoom);
+            const newOriginY = canvas.height / (2 * state.view.zoom);
+
+            // Adjust offset so world position at center stays the same
+            state.view.offsetX = centerX - (worldX + newOriginX) * state.view.zoom;
+            state.view.offsetY = centerY - (worldY + newOriginY) * state.view.zoom;
+
+            render();
+        });
+
+        function isModalOpen() {
+            return modal.classList.contains('active');
+        }
+
+        function getLayerName(z) {
+            if (z === 0) return 'Surface (z0)';
+            return `z${z > 0 ? '+' : ''}${z}`;
+        }
+
+        // Easing function for smooth animation
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function animateViewTo(targetZoom, targetOffsetX, targetOffsetY) {
+            if (isAnimating) return; // Prevent overlapping animations
+            
+            isAnimating = true;
+            animationStartTime = performance.now();
+            animationStart = {
+                zoom: state.view.zoom,
+                offsetX: state.view.offsetX,
+                offsetY: state.view.offsetY
+            };
+            animationTarget = {
+                zoom: targetZoom,
+                offsetX: targetOffsetX,
+                offsetY: targetOffsetY
+            };
+            
+            requestAnimationFrame(animateViewFrame);
+        }
+
+        function animateViewFrame(currentTime) {
+            if (!isAnimating) return;
+            
+            const elapsed = currentTime - animationStartTime;
+            const progress = Math.min(elapsed / animationDuration, 1);
+            const easedProgress = easeInOutCubic(progress);
+            
+            // Interpolate zoom and offset
+            state.view.zoom = animationStart.zoom + (animationTarget.zoom - animationStart.zoom) * easedProgress;
+            state.view.offsetX = animationStart.offsetX + (animationTarget.offsetX - animationStart.offsetX) * easedProgress;
+            state.view.offsetY = animationStart.offsetY + (animationTarget.offsetY - animationStart.offsetY) * easedProgress;
+            
+            render();
+            
+            if (progress < 1) {
+                requestAnimationFrame(animateViewFrame);
+            } else {
+                isAnimating = false;
+            }
+        }
+
+        function transitionToLayer(newLayer) {
+            if (isLayerTransitioning) return;
+            
+            isLayerTransitioning = true;
+            const fadeOutDuration = 400;
+            const fadeInDuration = 400;
+            const startTime = performance.now();
+            
+            // Fade out current layer
+            function fadeOut(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / fadeOutDuration, 1);
+                layerTransitionOpacity = 1 - progress;
+                
+                render();
+                
+                if (progress < 1) {
+                    requestAnimationFrame(fadeOut);
+                } else {
+                    // Switch layer
+                    state.view.activeLayer = newLayer;
+                    updateLayerSelector();
+                    document.getElementById('layer-select').value = state.view.activeLayer;
+                    
+                    // Fade in new layer
+                    const fadeInStartTime = performance.now();
+                    function fadeIn(currentTime) {
+                        const elapsed = currentTime - fadeInStartTime;
+                        const progress = Math.min(elapsed / fadeInDuration, 1);
+                        layerTransitionOpacity = progress;
+                        
+                        render();
+                        
+                        if (progress < 1) {
+                            requestAnimationFrame(fadeIn);
+                        } else {
+                            layerTransitionOpacity = 1;
+                            isLayerTransitioning = false;
+                        }
+                    }
+                    requestAnimationFrame(fadeIn);
+                }
+            }
+            requestAnimationFrame(fadeOut);
+        }
+
+        function updateLayerSelector() {
+            const layerSelect = document.getElementById('layer-select');
+            const currentValue = state.view.activeLayer;
+            
+            // Get all unique z-levels from cards
+            const zLevels = new Set();
+            state.cards.forEach(card => {
+                if (card.z !== null) {
+                    zLevels.add(card.z);
+                }
+            });
+            
+            // If no cards, default to just z0
+            if (zLevels.size === 0) {
+                zLevels.add(0);
+            }
+            
+            // Sort z-levels (highest to lowest)
+            const sortedLevels = Array.from(zLevels).sort((a, b) => b - a);
+            
+            // Rebuild selector options
+            layerSelect.innerHTML = '';
+            sortedLevels.forEach(z => {
+                const option = document.createElement('option');
+                option.value = z;
+                option.textContent = getLayerName(z);
+                layerSelect.appendChild(option);
+            });
+            
+            // Restore selected value if it still exists
+            if (sortedLevels.includes(currentValue)) {
+                layerSelect.value = currentValue;
+            } else {
+                // Default to surface or first available layer
+                layerSelect.value = sortedLevels.includes(0) ? 0 : sortedLevels[0];
+                state.view.activeLayer = parseInt(layerSelect.value);
+            }
+        }
+
+        function zoomToFit() {
+            if (state.cards.length === 0) return;
+
+            const positionedCards = state.cards.filter(c => c.x !== null);
+            if (positionedCards.length === 0) return;
+
+            // Get card positions in world space (ALL layers for bounds calculation)
+            const xs = positionedCards.map(c => c.x * CELL_SIZE);
+            const ys = positionedCards.map(c => c.y * CELL_SIZE);
+
+            const minX = Math.min(...xs) - CARD_WIDTH;
+            const maxX = Math.max(...xs) + CARD_WIDTH;
+            const minY = Math.min(...ys) - CARD_HEIGHT;
+            const maxY = Math.max(...ys) + CARD_HEIGHT;
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+
+            // Calculate zoom to fit
+            const zoomX = canvas.width / width;
+            const zoomY = canvas.height / height;
+            const targetZoom = Math.min(zoomX, zoomY, 1) * 0.8;
+
+            // Center of all cards in world space
+            const worldCenterX = (minX + maxX) / 2;
+            const worldCenterY = (minY + maxY) / 2;
+
+            // Target offsets so world center appears at screen center
+            const targetOffsetX = -worldCenterX * targetZoom;
+            const targetOffsetY = -worldCenterY * targetZoom;
+
+            // Animate to target position
+            animateViewTo(targetZoom, targetOffsetX, targetOffsetY);
+        }
+
+        function centerOnCard(card, zoom = 0.8, setAsCurrent = true, animate = true) {
+            if (!card || card.x === null) return;
+
+            // Optionally set as current card (for adding new cards)
+            if (setAsCurrent) {
+                state.currentCardId = card.id;
+                saveToLocalStorage();
+            }
+
+            // Switch to the card's z-layer with transition
+            if (card.z !== state.view.activeLayer) {
+                transitionToLayer(card.z);
+            }
+
+            // Calculate card position in world space
+            const cardX = card.x * CELL_SIZE;
+            const cardY = card.y * CELL_SIZE;
+
+            // Target offsets to center the card
+            const targetOffsetX = -cardX * zoom;
+            const targetOffsetY = -cardY * zoom;
+
+            if (animate) {
+                animateViewTo(zoom, targetOffsetX, targetOffsetY);
+            } else {
+                state.view.zoom = zoom;
+                state.view.offsetX = targetOffsetX;
+                state.view.offsetY = targetOffsetY;
+                render();
+            }
+        }
+
+        document.getElementById('zoom-fit-btn').addEventListener('click', zoomToFit);
+        document.getElementById('undo-btn').addEventListener('click', undo);
+        document.getElementById('redo-btn').addEventListener('click', redo);
+
+        // ===== SEARCH FUNCTIONALITY =====
+        const searchInput = document.getElementById('search-input');
+
+        // Auto-pad search input
+        searchInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, ''); // Only digits
+            if (value.length > 3) value = value.slice(0, 3);
+            e.target.value = value;
+        });
+
+        searchInput.addEventListener('blur', (e) => {
+            if (e.target.value.length > 0 && e.target.value.length < 3) {
+                e.target.value = padCardNumber(e.target.value);
+            }
+        });
+
+        // Search on Enter key
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        function performSearch() {
+            const searchValue = searchInput.value.trim();
+            if (searchValue.length === 0) {
+                showToast('Enter a card number to search', 'error');
+                return;
+            }
+
+            const cardNum = padCardNumber(searchValue);
+            const card = getCardByNumber(cardNum);
+
+            if (!card) {
+                showToast(`Card ${cardNum} not found`, 'error');
+                return;
+            }
+
+            if (card.x === null) {
+                showToast(`Card ${cardNum} has no position`, 'error');
+                return;
+            }
+
+            // Center on card without setting it as current (with animation)
+            centerOnCard(card, 0.8, false, true);
+            showToast(`Found ${cardNum}`, 'success');
+            searchInput.value = '';
+        }
+
+        // ===== LAYER SELECTION =====
+        document.getElementById('layer-select').addEventListener('change', (e) => {
+            const newLayer = parseInt(e.target.value);
+            if (newLayer !== state.view.activeLayer) {
+                transitionToLayer(newLayer);
+            }
+        });
+
+        // ===== EXPORT/IMPORT =====
+        document.getElementById('export-btn').addEventListener('click', exportJSON);
+        document.getElementById('import-btn').addEventListener('click', () => {
+            document.getElementById('import-file-input').click();
+        });
+
+        document.getElementById('import-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        importJSON(data);
+                    } catch (err) {
+                        showToast('Error: Invalid JSON file', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            }
+            e.target.value = ''; // Reset input
+        });
+
+        function exportJSON() {
+            const data = {
+                cards: state.cards.map(c => ({
+                    id: c.id,
+                    num: c.num,
+                    note: c.note,
+                    x: c.x,
+                    y: c.y,
+                    z: c.z,
+                    orientation: c.orientation || 'landscape',
+                    manuallyPositioned: c.manuallyPositioned || false
+                })),
+                links: state.links.map(l => ({
+                    id: l.id,
+                    from: l.from,
+                    to: l.to,
+                    kind: l.kind,
+                    certified: l.certified
+                })),
+                meta: state.meta
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'vantage-map.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast('Map exported successfully', 'success');
+        }
+
+        function importJSON(data) {
+            if (state.cards.length > 0) {
+                if (!confirm('Import will replace the current map. Continue?')) {
+                    return;
+                }
+            }
+
+            state.cards = data.cards.map(c => ({
+                ...c, 
+                positioned: true,
+                orientation: c.orientation || 'landscape', // Default to landscape if not specified
+                manuallyPositioned: c.manuallyPositioned || false // Preserve manual positioning flag
+            }));
+            state.links = data.links;
+            state.meta = data.meta || state.meta;
+            state.currentCardId = state.cards.length > 0 ? state.cards[state.cards.length - 1].id : null;
+
+            // Update ID counters
+            const cardIds = state.cards.map(c => parseInt(c.id.split('_')[1]));
+            const linkIds = state.links.map(l => parseInt(l.id.split('_')[1]));
+            nextCardId = Math.max(...cardIds, 0) + 1;
+            nextLinkId = Math.max(...linkIds, 0) + 1;
+
+            solveLayout();
+            saveToLocalStorage();
+            
+            // Clear history and save imported state
+            history = [];
+            historyIndex = -1;
+            saveHistory();
+            
+            // Update layer selector with imported z-levels
+            updateLayerSelector();
+            
+            render();
+            zoomToFit();
+
+            showToast('Map imported successfully', 'success');
+        }
+
+        // ===== LOCAL STORAGE =====
+        function saveToLocalStorage() {
+            const data = {
+                cards: state.cards,
+                links: state.links,
+                currentCardId: state.currentCardId,
+                meta: state.meta,
+                view: state.view,
+                nextCardId,
+                nextLinkId
+            };
+            localStorage.setItem('vantage-map', JSON.stringify(data));
+        }
+
+        function loadFromLocalStorage() {
+            const saved = localStorage.getItem('vantage-map');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    state.cards = (data.cards || []).map(c => ({
+                        ...c,
+                        orientation: c.orientation || 'landscape', // Default to landscape if not specified
+                        manuallyPositioned: c.manuallyPositioned || false // Preserve manual positioning flag
+                    }));
+                    state.links = data.links || [];
+                    state.currentCardId = data.currentCardId || null;
+                    state.meta = data.meta || state.meta;
+                    state.view = data.view || state.view;
+                    nextCardId = data.nextCardId || 1;
+                    nextLinkId = data.nextLinkId || 1;
+
+                    // Initialize history with current state
+                    saveHistory();
+                    
+                    // Update layer selector based on loaded cards
+                    updateLayerSelector();
+
+                    render();
+                    if (state.cards.length > 0) {
+                        zoomToFit();
+                    }
+                } catch (err) {
+                    console.error('Failed to load from localStorage:', err);
+                }
+            } else {
+                // Initialize history with empty state
+                saveHistory();
+                updateLayerSelector();
+            }
+        }
+
+        // ===== RESET FUNCTIONALITY =====
+        const resetModal = document.getElementById('reset-modal-backdrop');
+        const resetBtn = document.getElementById('reset-btn');
+        const resetCancelBtn = document.getElementById('reset-cancel');
+        const resetConfirmBtn = document.getElementById('reset-confirm');
+
+        resetBtn.addEventListener('click', () => {
+            resetModal.classList.add('active');
+        });
+
+        resetCancelBtn.addEventListener('click', () => {
+            resetModal.classList.remove('active');
+        });
+
+        resetModal.addEventListener('click', (e) => {
+            if (e.target === resetModal) {
+                resetModal.classList.remove('active');
+            }
+        });
+
+        resetConfirmBtn.addEventListener('click', () => {
+            // Clear all state
+            state.cards = [];
+            state.links = [];
+            state.currentCardId = null;
+            state.meta = {
+                version: 1,
+                created: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+            };
+            state.view = {
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+                activeLayer: 0
+            };
+
+            // Reset ID counters
+            nextCardId = 1;
+            nextLinkId = 1;
+
+            // Clear localStorage
+            localStorage.removeItem('vantage-map');
+
+            // Clear history and save reset state
+            history = [];
+            historyIndex = -1;
+            saveHistory();
+            
+            // Reset layer selector to just surface
+            updateLayerSelector();
+
+            // Close modal and refresh view
+            resetModal.classList.remove('active');
+            render();
+
+            showToast('Map has been reset', 'success');
+        });
+
+        // ===== INITIALIZATION =====
+        loadFromLocalStorage();
+        render();
+    </script>
+</body>
+</html>
+
