@@ -39,10 +39,44 @@
             right: 0;
             z-index: 100;
         }
+        
+        /* Toolbar row structure */
+        .toolbar-top-row {
+            display: flex;
+            flex-wrap: nowrap; /* Don't wrap on desktop */
+            align-items: center;
+            gap: 8px;
+            flex: 1 1 auto;
+        }
+        
+        .toolbar-add-row {
+            display: none; /* Hidden on desktop */
+            align-items: center;
+        }
+        
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .toolbar-right-group {
+            margin-left: auto; /* Push to the right */
+        }
+        
+        .toolbar-divider {
+            width: 1px;
+            height: 24px;
+            background: #E2E8F0;
+        }
 
-        #add-btn {
-            flex: 1 1 auto; /* Allow it to grow and fill available space */
-            min-width: 80px; /* But keep a minimum width */
+        #add-btn-desktop {
+            flex: 1 1 auto; /* Grow to fill available space on desktop */
+            min-width: 80px;
+        }
+        
+        #add-btn-mobile {
+            /* Shown only on iPad/mobile */
         }
 
         .toolbar-btn {
@@ -56,6 +90,10 @@
             font-weight: 500;
             color: #0F172A;
             transition: all 0.2s;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .toolbar-btn:hover {
@@ -105,6 +143,9 @@
             cursor: pointer;
             color: #0F172A;
             transition: all 0.2s;
+            height: 36px;
+            display: inline-flex;
+            align-items: center;
         }
         
         #layer-select:hover {
@@ -144,6 +185,8 @@
             background: white;
             color: #0F172A;
             transition: all 0.2s;
+            height: 36px;
+            box-sizing: border-box;
         }
         
         #search-input:hover {
@@ -531,18 +574,71 @@
         /* iPad-specific layout (768px to 1024px) */
         @media (min-width: 768px) and (max-width: 1024px) {
             #toolbar {
-                align-content: flex-start; /* Allow wrapping to create rows */
+                flex-direction: column; /* Stack rows vertically */
+                align-items: stretch;
             }
             
-            #add-btn {
-                order: 100; /* Push to the end/bottom */
+            .toolbar-top-row {
+                width: 100%;
+                flex-wrap: nowrap; /* Don't wrap - keep everything on one line */
+                justify-content: space-between; /* Distribute space evenly */
+                gap: 4px; /* Smaller gaps */
+            }
+            
+            .toolbar-divider {
+                display: none; /* Hide dividers to save space */
+            }
+            
+            .toolbar-group {
+                gap: 4px; /* Smaller gaps within groups */
+                flex: 0 1 auto; /* Allow shrinking */
+            }
+            
+            .toolbar-btn {
+                padding: 8px 8px; /* Reduce horizontal padding */
+                font-size: 13px; /* Slightly smaller text */
+                white-space: nowrap; /* Prevent text wrapping */
+                flex: 0 1 auto; /* Allow shrinking */
+                min-width: 0; /* Allow buttons to shrink below their content */
+            }
+            
+            #layer-select {
+                padding: 8px 8px;
+                font-size: 13px;
+                flex: 0 1 auto;
+                min-width: 60px;
+            }
+            
+            #add-btn-desktop {
+                display: none; /* Hide desktop Add button on iPad */
+            }
+            
+            .toolbar-right-group {
+                margin-left: 0; /* Remove auto margin */
+                flex: 0 1 auto; /* Allow shrinking */
+            }
+            
+            .search-wrapper {
+                flex: 1 1 auto; /* Grow to fill remaining space */
+                min-width: 60px; /* Minimum width */
+            }
+            
+            #search-input {
+                width: 100%; /* Take full width of wrapper */
+                padding: 8px 8px 8px 28px;
+                font-size: 13px;
+            }
+            
+            .toolbar-add-row {
+                display: flex; /* Show bottom row on iPad */
+                width: 100%;
+                margin-top: 8px;
+                flex: 0 0 100%; /* Take full width of toolbar */
+            }
+            
+            #add-btn-mobile {
                 flex: 1 1 100%; /* Take full width */
                 width: 100%;
-            }
-            
-            #zoom-fit-btn {
-                min-width: 140px; /* Ensure enough width for "Show Entire Map" text */
-                white-space: nowrap; /* Prevent text wrapping */
             }
         }
 
@@ -550,10 +646,29 @@
             #toolbar {
                 padding: 8px 12px;
                 gap: 6px;
+                flex-direction: column;
+                align-items: stretch;
             }
 
             .toolbar-divider {
                 display: none; /* Hide dividers on mobile for cleaner look */
+            }
+            
+            .toolbar-top-row {
+                width: 100%;
+                flex-wrap: wrap; /* Allow wrapping */
+                justify-content: flex-start;
+            }
+            
+            #add-btn-desktop {
+                display: none; /* Hide desktop Add button on mobile */
+            }
+            
+            .toolbar-add-row {
+                display: flex; /* Show bottom row on mobile */
+                width: 100%;
+                margin-top: 4px;
+                flex: 0 0 100%; /* Take full width of toolbar */
             }
 
             .toolbar-group {
@@ -565,10 +680,9 @@
                 font-size: 12px;
             }
 
-            #add-btn {
-                order: 5;
+            #add-btn-mobile {
                 flex: 1 1 100%;
-                margin-top: 4px;
+                width: 100%;
                 min-width: auto; /* Remove min-width on mobile */
             }
 
@@ -669,32 +783,44 @@
 <body>
     <!-- Toolbar -->
     <div id="toolbar">
-        <!-- History Group (left) -->
-        <div class="toolbar-group">
-            <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
-            <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
-        </div>
-        
-        <div class="toolbar-divider"></div>
-        
-        <!-- Navigation & Actions Group (center-left) -->
-        <div class="toolbar-group" style="flex: 1 1 auto; display: flex; align-items: center; gap: 8px;">
-            <select id="layer-select">
-                <!-- Dynamically populated based on card z-levels -->
-            </select>
-            <button class="toolbar-btn" id="zoom-fit-btn">Show Entire Map</button>
-            <button class="toolbar-btn primary" id="add-btn">Add +</button>
-        </div>
-        
-        <!-- Search & File Operations (right) -->
-        <div class="toolbar-group">
-            <div class="search-wrapper">
-                <span class="search-icon">⌕</span>
-                <input type="search" id="search-input" placeholder="Find 007..." maxlength="3" inputmode="numeric">
+        <!-- Top Row: All controls -->
+        <div class="toolbar-top-row">
+            <!-- History Group (left) -->
+            <div class="toolbar-group">
+                <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶</button>
+                <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)" disabled>↷</button>
             </div>
-            <button class="toolbar-btn" id="export-btn">Export Map</button>
-            <button class="toolbar-btn" id="import-btn">Import Map</button>
-            <button class="toolbar-btn" id="reset-btn" style="color: #EF4444; border-color: #EF4444;">Reset</button>
+            
+            <div class="toolbar-divider"></div>
+            
+            <!-- Navigation Group -->
+            <div class="toolbar-group">
+                <select id="layer-select">
+                    <!-- Dynamically populated based on card z-levels -->
+                </select>
+                <button class="toolbar-btn" id="zoom-fit-btn">Full Map</button>
+            </div>
+            
+            <div class="toolbar-divider"></div>
+            
+            <!-- Add Button (inline on desktop, moves to bottom row on iPad/mobile) -->
+            <button class="toolbar-btn primary" id="add-btn-desktop">Add +</button>
+            
+            <!-- Search & File Operations (right-aligned) -->
+            <div class="toolbar-group toolbar-right-group">
+                <div class="search-wrapper">
+                    <span class="search-icon">⌕</span>
+                    <input type="search" id="search-input" placeholder="Find 007..." maxlength="3" inputmode="numeric">
+                </div>
+                <button class="toolbar-btn" id="export-btn">Export</button>
+                <button class="toolbar-btn" id="import-btn">Import</button>
+                <button class="toolbar-btn" id="reset-btn" style="color: #EF4444; border-color: #EF4444;">Reset</button>
+            </div>
+        </div>
+        
+        <!-- Bottom Row: Add Button (iPad/mobile only) -->
+        <div class="toolbar-add-row">
+            <button class="toolbar-btn primary" id="add-btn-mobile">Add +</button>
         </div>
     </div>
 
@@ -1425,7 +1551,9 @@
         let selectedDirection = null;
         let selectedOrientation = 'landscape'; // Default
 
-        document.getElementById('add-btn').addEventListener('click', openModal);
+        // Add click listeners to both Add buttons (desktop and mobile)
+        document.getElementById('add-btn-desktop').addEventListener('click', openModal);
+        document.getElementById('add-btn-mobile').addEventListener('click', openModal);
         cancelButton.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => {
             if (e.target === modal) closeModal();
