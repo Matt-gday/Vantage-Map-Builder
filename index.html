@@ -527,6 +527,24 @@
                 display: none;
             }
         }
+        
+        /* iPad-specific layout (768px to 1024px) */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            #toolbar {
+                align-content: flex-start; /* Allow wrapping to create rows */
+            }
+            
+            #add-btn {
+                order: 100; /* Push to the end/bottom */
+                flex: 1 1 100%; /* Take full width */
+                width: 100%;
+            }
+            
+            #zoom-fit-btn {
+                min-width: 140px; /* Ensure enough width for "Show Entire Map" text */
+                white-space: nowrap; /* Prevent text wrapping */
+            }
+        }
 
         @media (max-width: 768px) {
             #toolbar {
