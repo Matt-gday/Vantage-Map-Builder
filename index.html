@@ -33,7 +33,11 @@
             padding: 8px 20px;
             gap: 8px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
         }
 
         #add-btn {
@@ -159,8 +163,9 @@
         #map-container {
             position: relative;
             width: 100%;
-            height: calc(100vh - 56px);
+            height: 100vh;
             overflow: hidden;
+            padding-top: 56px; /* Account for fixed toolbar */
         }
 
         #map-canvas {
@@ -192,26 +197,40 @@
         .modal {
             background: white;
             border-radius: 12px;
-            padding: 24px;
+            padding: 16px;
             width: 90%;
             max-width: 480px;
+            max-height: 90vh;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .modal-content {
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 4px;
         }
 
         .modal-header {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 700;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .modal-subheader {
-            font-size: 14px;
+            font-size: 12px;
             color: #64748B;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
+        }
+
+        .form-group.compact {
+            margin-bottom: 8px;
         }
 
         .form-label {
@@ -296,18 +315,18 @@
         .direction-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
         }
 
         .direction-btn {
-            padding: 12px;
+            padding: 10px;
             background: white;
             border: 2px solid #CBD5E1;
             border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
             transition: all 0.2s;
             user-select: none;
@@ -339,8 +358,8 @@
         .vertical-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
         }
 
         .other-button {
@@ -349,19 +368,19 @@
 
         .orientation-btn {
             flex: 1;
-            padding: 12px;
+            padding: 8px;
             background: white;
             border: 2px solid #CBD5E1;
             border-radius: 6px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
             transition: all 0.2s;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
+            gap: 4px;
         }
 
         .orientation-btn:hover {
@@ -377,13 +396,16 @@
 
         .modal-footer {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             justify-content: flex-end;
-            margin-top: 24px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #E2E8F0;
+            flex-shrink: 0;
         }
 
         .modal-btn {
-            padding: 10px 20px;
+            padding: 8px 16px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
@@ -420,7 +442,7 @@
         /* Toast */
         .toast-container {
             position: fixed;
-            top: 80px;
+            top: 70px;
             right: 20px;
             z-index: 2000;
             display: flex;
@@ -507,18 +529,35 @@
             .modal {
                 width: 95%;
                 max-width: 100%;
-                padding: 20px;
-                max-height: 90vh;
-                overflow-y: auto;
+                padding: 12px;
+                max-height: 85vh;
+            }
+
+            .modal-content {
+                max-height: calc(85vh - 80px);
+            }
+
+            .form-group {
+                margin-bottom: 8px;
+            }
+
+            .form-group.compact {
+                margin-bottom: 6px;
             }
 
             .numeric-keypad {
                 max-width: 100%;
+                gap: 4px;
             }
 
             .keypad-btn {
-                padding: 14px;
-                font-size: 18px;
+                padding: 10px;
+                font-size: 16px;
+            }
+
+            .direction-btn {
+                padding: 8px;
+                font-size: 13px;
             }
         }
 
@@ -576,69 +615,71 @@
     <!-- Add Location Modal -->
     <div class="modal-backdrop" id="modal-backdrop">
         <div class="modal">
-            <div class="modal-header">Add Location</div>
-            <div class="modal-subheader" id="modal-subheader"></div>
-            <div class="form-group">
-                <label class="form-label" for="card-number">Location ID</label>
-                <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric" readonly>
-                <div class="numeric-keypad">
-                    <div class="keypad-row">
-                        <button class="keypad-btn" data-key="1">1</button>
-                        <button class="keypad-btn" data-key="2">2</button>
-                        <button class="keypad-btn" data-key="3">3</button>
-                    </div>
-                    <div class="keypad-row">
-                        <button class="keypad-btn" data-key="4">4</button>
-                        <button class="keypad-btn" data-key="5">5</button>
-                        <button class="keypad-btn" data-key="6">6</button>
-                    </div>
-                    <div class="keypad-row">
-                        <button class="keypad-btn" data-key="7">7</button>
-                        <button class="keypad-btn" data-key="8">8</button>
-                        <button class="keypad-btn" data-key="9">9</button>
-                    </div>
-                    <div class="keypad-row">
-                        <button class="keypad-btn clear-btn" data-key="clear">Clear</button>
-                        <button class="keypad-btn" data-key="0">0</button>
-                        <button class="keypad-btn backspace-btn" data-key="backspace">⌫</button>
+            <div class="modal-content">
+                <div class="modal-header">Add Location</div>
+                <div class="modal-subheader" id="modal-subheader"></div>
+                <div class="form-group compact">
+                    <label class="form-label" for="card-number">Location ID</label>
+                    <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric" readonly>
+                    <div class="numeric-keypad">
+                        <div class="keypad-row">
+                            <button class="keypad-btn" data-key="1">1</button>
+                            <button class="keypad-btn" data-key="2">2</button>
+                            <button class="keypad-btn" data-key="3">3</button>
+                        </div>
+                        <div class="keypad-row">
+                            <button class="keypad-btn" data-key="4">4</button>
+                            <button class="keypad-btn" data-key="5">5</button>
+                            <button class="keypad-btn" data-key="6">6</button>
+                        </div>
+                        <div class="keypad-row">
+                            <button class="keypad-btn" data-key="7">7</button>
+                            <button class="keypad-btn" data-key="8">8</button>
+                            <button class="keypad-btn" data-key="9">9</button>
+                        </div>
+                        <div class="keypad-row">
+                            <button class="keypad-btn clear-btn" data-key="clear">Clear</button>
+                            <button class="keypad-btn" data-key="0">0</button>
+                            <button class="keypad-btn backspace-btn" data-key="backspace">⌫</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label" for="card-note">Notes (optional)</label>
-                <input type="search" class="form-input" id="card-note" placeholder="e.g., Flooded Cave">
-            </div>
-            <div class="form-group">
-                <label class="form-label">Orientation</label>
-                <div style="display: flex; gap: 8px;">
-                    <button type="button" class="orientation-btn active" data-orientation="landscape">
-                        <div style="width: 40px; height: 24px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                        Landscape
-                    </button>
-                    <button type="button" class="orientation-btn" data-orientation="portrait">
-                        <div style="width: 24px; height: 40px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                        Portrait
-                    </button>
+                <div class="form-group compact">
+                    <label class="form-label" for="card-note">Notes (optional)</label>
+                    <input type="search" class="form-input" id="card-note" placeholder="e.g., Flooded Cave">
                 </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label" id="direction-label">Direction</label>
-                <div class="direction-grid">
-                    <div></div>
-                    <button class="direction-btn" data-direction="N">N</button>
-                    <div></div>
-                    <button class="direction-btn" data-direction="W">W</button>
-                    <div></div>
-                    <button class="direction-btn" data-direction="E">E</button>
-                    <div></div>
-                    <button class="direction-btn" data-direction="S">S</button>
-                    <div></div>
+                <div class="form-group compact">
+                    <label class="form-label">Orientation</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="orientation-btn active" data-orientation="landscape">
+                            <div style="width: 32px; height: 20px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                            Landscape
+                        </button>
+                        <button type="button" class="orientation-btn" data-orientation="portrait">
+                            <div style="width: 20px; height: 32px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                            Portrait
+                        </button>
+                    </div>
                 </div>
-                <div class="vertical-buttons">
-                    <button class="direction-btn" data-direction="up">↑ Up</button>
-                    <button class="direction-btn" data-direction="down">↓ Down</button>
+                <div class="form-group compact">
+                    <label class="form-label" id="direction-label">Direction</label>
+                    <div class="direction-grid">
+                        <div></div>
+                        <button class="direction-btn" data-direction="N">N</button>
+                        <div></div>
+                        <button class="direction-btn" data-direction="W">W</button>
+                        <div></div>
+                        <button class="direction-btn" data-direction="E">E</button>
+                        <div></div>
+                        <button class="direction-btn" data-direction="S">S</button>
+                        <div></div>
+                    </div>
+                    <div class="vertical-buttons">
+                        <button class="direction-btn" data-direction="up">↑ Up</button>
+                        <button class="direction-btn" data-direction="down">↓ Down</button>
+                    </div>
+                    <button class="direction-btn other-button" data-direction="other">Other</button>
                 </div>
-                <button class="direction-btn other-button" data-direction="other">Other</button>
             </div>
             <div class="modal-footer">
                 <button class="modal-btn cancel" id="modal-cancel">Cancel</button>
@@ -1034,15 +1075,8 @@
             
             // If group has manually positioned cards, preserve them but still process new cards
             if (hasManuallyPositioned) {
-                // Mark existing positioned cards as manually positioned to preserve the layout
-                for (const cardId of group) {
-                    const card = getCardById(cardId);
-                    if (card && card.x !== null) {
-                        card.manuallyPositioned = true;
-                        card.positioned = true;
-                    }
-                }
-                // Don't return - continue to process new unpositioned cards below
+                // Don't mark cards as manually positioned here - we'll do it after propagation
+                // to avoid marking cards that were just positioned during this run
             } else {
                 // Find the first card in this group to use as anchor (for non-manually positioned groups)
                 for (const cardId of group) {
@@ -2660,20 +2694,21 @@
 
         canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Mouse wheel zoom (centered on screen center)
+        // Mouse wheel zoom (centered on mouse pointer)
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             
-            // Get center of screen
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            // Get mouse position relative to canvas
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
 
-            // Calculate world position at center before zoom
+            // Calculate world position at mouse pointer before zoom
             const originX = canvas.width / (2 * state.view.zoom);
             const originY = canvas.height / (2 * state.view.zoom);
             
-            const worldX = (centerX - state.view.offsetX) / state.view.zoom - originX;
-            const worldY = (centerY - state.view.offsetY) / state.view.zoom - originY;
+            const worldX = (mouseX - state.view.offsetX) / state.view.zoom - originX;
+            const worldY = (mouseY - state.view.offsetY) / state.view.zoom - originY;
 
             // Apply zoom
             const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -2683,9 +2718,9 @@
             const newOriginX = canvas.width / (2 * state.view.zoom);
             const newOriginY = canvas.height / (2 * state.view.zoom);
 
-            // Adjust offset so world position at center stays the same
-            state.view.offsetX = centerX - (worldX + newOriginX) * state.view.zoom;
-            state.view.offsetY = centerY - (worldY + newOriginY) * state.view.zoom;
+            // Adjust offset so world position at mouse pointer stays the same
+            state.view.offsetX = mouseX - (worldX + newOriginX) * state.view.zoom;
+            state.view.offsetY = mouseY - (worldY + newOriginY) * state.view.zoom;
 
             render();
         });
