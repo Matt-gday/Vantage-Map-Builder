@@ -242,6 +242,57 @@
             border-color: #0EA5E9;
         }
 
+        .numeric-keypad {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .keypad-row {
+            display: contents;
+        }
+
+        .keypad-btn {
+            padding: 16px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 20px;
+            font-weight: 600;
+            color: #0F172A;
+            transition: all 0.15s;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .keypad-btn:active {
+            background: #0EA5E9;
+            border-color: #0EA5E9;
+            color: white;
+            transform: scale(0.95);
+        }
+
+        .keypad-btn:hover:not(:active) {
+            border-color: #0EA5E9;
+            background: #F0F9FF;
+        }
+
+        .clear-btn {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .backspace-btn {
+            font-size: 24px;
+        }
+
         .direction-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -412,6 +463,93 @@
         #import-file-input {
             display: none;
         }
+
+        /* Responsive Design for Mobile/Tablet */
+        @media (max-width: 768px) {
+            #toolbar {
+                flex-wrap: wrap;
+                height: auto;
+                min-height: 56px;
+                padding: 8px 12px;
+                gap: 6px;
+            }
+
+            .toolbar-btn {
+                padding: 6px 10px;
+                font-size: 12px;
+                flex: 0 0 auto;
+            }
+
+            #add-btn {
+                position: static;
+                transform: none;
+                order: 5;
+                flex: 1 1 100%;
+                margin-top: 4px;
+            }
+
+            .toolbar-spacer {
+                display: none;
+            }
+
+            #search-input {
+                width: 90px;
+                padding: 6px 10px 6px 28px;
+                font-size: 12px;
+            }
+
+            .search-icon {
+                left: 8px;
+                font-size: 14px;
+            }
+
+            #layer-select {
+                padding: 6px 10px;
+                font-size: 12px;
+            }
+
+            .modal {
+                width: 95%;
+                max-width: 100%;
+                padding: 20px;
+                max-height: 90vh;
+                overflow-y: auto;
+            }
+
+            .numeric-keypad {
+                max-width: 100%;
+            }
+
+            .keypad-btn {
+                padding: 14px;
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .toolbar-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+            }
+
+            #undo-btn, #redo-btn {
+                display: none; /* Hide undo/redo on very small screens */
+            }
+
+            #export-btn, #import-btn {
+                font-size: 10px;
+                padding: 6px 6px;
+            }
+
+            #zoom-fit-btn {
+                font-size: 10px;
+                padding: 6px 8px;
+            }
+
+            #search-input {
+                width: 70px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -446,7 +584,29 @@
             <div class="modal-subheader" id="modal-subheader"></div>
             <div class="form-group">
                 <label class="form-label" for="card-number">Location ID</label>
-                <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric">
+                <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric" readonly>
+                <div class="numeric-keypad">
+                    <div class="keypad-row">
+                        <button class="keypad-btn" data-key="1">1</button>
+                        <button class="keypad-btn" data-key="2">2</button>
+                        <button class="keypad-btn" data-key="3">3</button>
+                    </div>
+                    <div class="keypad-row">
+                        <button class="keypad-btn" data-key="4">4</button>
+                        <button class="keypad-btn" data-key="5">5</button>
+                        <button class="keypad-btn" data-key="6">6</button>
+                    </div>
+                    <div class="keypad-row">
+                        <button class="keypad-btn" data-key="7">7</button>
+                        <button class="keypad-btn" data-key="8">8</button>
+                        <button class="keypad-btn" data-key="9">9</button>
+                    </div>
+                    <div class="keypad-row">
+                        <button class="keypad-btn clear-btn" data-key="clear">Clear</button>
+                        <button class="keypad-btn" data-key="0">0</button>
+                        <button class="keypad-btn backspace-btn" data-key="backspace">⌫</button>
+                    </div>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label" for="card-note">Notes (optional)</label>
@@ -1151,14 +1311,38 @@
             }
 
             updateSaveButton();
-            cardNumberInput.focus();
+            // Don't auto-focus on mobile to prevent keyboard popup
         }
 
         function closeModal() {
             modal.classList.remove('active');
         }
 
-        // Card number input - auto-pad to 3 digits
+        // Numeric keypad handlers
+        const keypadButtons = document.querySelectorAll('.keypad-btn');
+        keypadButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const key = btn.dataset.key;
+                
+                if (key === 'clear') {
+                    cardNumberInput.value = '';
+                } else if (key === 'backspace') {
+                    cardNumberInput.value = cardNumberInput.value.slice(0, -1);
+                } else if (/^\d$/.test(key)) {
+                    if (cardNumberInput.value.length < 3) {
+                        cardNumberInput.value += key;
+                    }
+                }
+                
+                // Auto-pad when we have digits
+                if (cardNumberInput.value.length > 0 && cardNumberInput.value.length <= 3) {
+                    updateSaveButton();
+                }
+            });
+        });
+
+        // Card number input - auto-pad to 3 digits (for keyboard input if user still types)
         cardNumberInput.addEventListener('input', (e) => {
             let value = e.target.value.replace(/\D/g, ''); // Only digits
             if (value.length > 3) value = value.slice(0, 3);
@@ -1917,6 +2101,17 @@
         let dragStartPos = { x: 0, y: 0 };
         let groupStartPositions = new Map();
 
+        // ===== TOUCH CONTROLS =====
+        let touchStartPositions = [];
+        let initialPinchDistance = 0;
+        let isPinching = false;
+        let isTouchPanning = false;
+        let touchHasDragged = false;
+        let lastTouchTime = 0;
+        let lastTouchedCardId = null;
+        let touchStartCard = null;
+        let touchStartTime = 0;
+
         // Set initial cursor
         canvas.style.cursor = 'grab';
 
@@ -2454,6 +2649,333 @@
             state.view.offsetY = centerY - (worldY + newOriginY) * state.view.zoom;
 
             render();
+        });
+
+        // ===== TOUCH EVENT HANDLERS =====
+        function getTouchDistance(touches) {
+            if (touches.length < 2) return 0;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        function getTouchCenter(touches) {
+            if (touches.length === 0) return { x: 0, y: 0 };
+            if (touches.length === 1) {
+                return { x: touches[0].clientX, y: touches[0].clientY };
+            }
+            const x = (touches[0].clientX + touches[1].clientX) / 2;
+            const y = (touches[0].clientY + touches[1].clientY) / 2;
+            return { x, y };
+        }
+
+        function getCardAtTouch(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            const touchX = x - rect.left;
+            const touchY = y - rect.top;
+            
+            const originX = canvas.width / (2 * state.view.zoom);
+            const originY = canvas.height / (2 * state.view.zoom);
+            
+            const worldX = (touchX - state.view.offsetX) / state.view.zoom - originX;
+            const worldY = (touchY - state.view.offsetY) / state.view.zoom - originY;
+            
+            const activeLayer = state.view.activeLayer;
+            
+            for (const card of state.cards) {
+                if (card.x === null || card.z !== activeLayer) continue;
+                
+                const cardX = card.x * CELL_SIZE;
+                const cardY = card.y * CELL_SIZE;
+                
+                const isPortrait = card.orientation === 'portrait';
+                const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                
+                if (worldX >= cardX - cardW/2 && worldX <= cardX + cardW/2 &&
+                    worldY >= cardY - cardH/2 && worldY <= cardY + cardH/2) {
+                    return card;
+                }
+            }
+            return null;
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 0) return;
+            
+            e.preventDefault();
+            
+            const touches = Array.from(e.touches);
+            touchStartPositions = touches.map(t => ({ x: t.clientX, y: t.clientY }));
+            touchStartTime = Date.now();
+            touchHasDragged = false;
+            
+            if (touches.length === 2) {
+                // Two-finger touch - start pinch zoom or pan
+                isPinching = true;
+                isTouchPanning = true;
+                initialPinchDistance = getTouchDistance(touches);
+                
+                // Store initial zoom and offset
+                const center = getTouchCenter(touches);
+                const rect = canvas.getBoundingClientRect();
+                const centerX = center.x - rect.left;
+                const centerY = center.y - rect.top;
+                
+                const originX = canvas.width / (2 * state.view.zoom);
+                const originY = canvas.height / (2 * state.view.zoom);
+                
+                touchStartPositions.push({
+                    worldX: (centerX - state.view.offsetX) / state.view.zoom - originX,
+                    worldY: (centerY - state.view.offsetY) / state.view.zoom - originY,
+                    zoom: state.view.zoom,
+                    offsetX: state.view.offsetX,
+                    offsetY: state.view.offsetY,
+                    initialDistance: initialPinchDistance
+                });
+            } else if (touches.length === 1) {
+                // Single-finger touch - check if touching a card
+                const touch = touches[0];
+                const card = getCardAtTouch(touch.clientX, touch.clientY);
+                
+                if (card) {
+                    // Check if card is in a group
+                    const groups = getCardinalConnectivityGroups();
+                    for (const group of groups) {
+                        if (group.has(card.id)) {
+                            touchStartCard = card;
+                            isDraggingGroup = true;
+                            draggedGroup = group;
+                            
+                            const rect = canvas.getBoundingClientRect();
+                            const touchX = touch.clientX - rect.left;
+                            const touchY = touch.clientY - rect.top;
+                            
+                            const originX = canvas.width / (2 * state.view.zoom);
+                            const originY = canvas.height / (2 * state.view.zoom);
+                            
+                            dragStartPos = {
+                                x: (touchX - state.view.offsetX) / state.view.zoom - originX,
+                                y: (touchY - state.view.offsetY) / state.view.zoom - originY
+                            };
+                            
+                            // Store original positions
+                            groupStartPositions.clear();
+                            for (const cardId of group) {
+                                const groupCard = getCardById(cardId);
+                                if (groupCard && groupCard.x !== null) {
+                                    groupStartPositions.set(cardId, {
+                                        x: groupCard.x,
+                                        y: groupCard.y
+                                    });
+                                }
+                            }
+                            return;
+                        }
+                    }
+                    
+                    // Card found but not in group (shouldn't happen) or single tap for double-tap detection
+                    touchStartCard = card;
+                }
+                
+                // Single finger not on card - prepare for panning (but wait for move)
+                isTouchPanning = false;
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 0) return;
+            
+            e.preventDefault();
+            
+            const touches = Array.from(e.touches);
+            
+            if (touches.length === 2) {
+                const currentDistance = getTouchDistance(touches);
+                const distanceChange = Math.abs(currentDistance - initialPinchDistance);
+                const distanceChangePercent = (distanceChange / initialPinchDistance) * 100;
+                
+                // If distance changed significantly (>5%), it's a pinch zoom
+                // Otherwise, it's a pan
+                if (distanceChangePercent > 5) {
+                    // Pinch zoom
+                    const scale = currentDistance / initialPinchDistance;
+                    
+                    if (touchStartPositions.length >= 3) {
+                        const initial = touchStartPositions[touchStartPositions.length - 1];
+                        const newZoom = Math.max(0.1, Math.min(5, initial.zoom * scale));
+                        
+                        // Get center of pinch
+                        const center = getTouchCenter(touches);
+                        const rect = canvas.getBoundingClientRect();
+                        const centerX = center.x - rect.left;
+                        const centerY = center.y - rect.top;
+                        
+                        const originX = canvas.width / (2 * newZoom);
+                        const originY = canvas.height / (2 * newZoom);
+                        
+                        // Adjust offset to keep center point stable
+                        state.view.zoom = newZoom;
+                        state.view.offsetX = centerX - (initial.worldX + originX) * newZoom;
+                        state.view.offsetY = centerY - (initial.worldY + originY) * newZoom;
+                        
+                        // Update initial distance for smooth zooming
+                        initialPinchDistance = currentDistance;
+                        if (touchStartPositions.length >= 3) {
+                            touchStartPositions[touchStartPositions.length - 1].zoom = newZoom;
+                        }
+                    }
+                } else {
+                    // Two-finger panning (no zoom change)
+                    const center = getTouchCenter(touches);
+                    const startCenter = getTouchCenter(touchStartPositions.slice(0, 2));
+                    
+                    const dx = center.x - startCenter.x;
+                    const dy = center.y - startCenter.y;
+                    
+                    if (touchStartPositions.length >= 3) {
+                        const initial = touchStartPositions[touchStartPositions.length - 1];
+                        state.view.offsetX = initial.offsetX + dx;
+                        state.view.offsetY = initial.offsetY + dy;
+                    }
+                }
+                
+                touchHasDragged = true;
+                render();
+            } else if (touches.length === 1 && isDraggingGroup && touchStartCard) {
+                // Single-finger dragging a group
+                const touch = touches[0];
+                const rect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX - rect.left;
+                const touchY = touch.clientY - rect.top;
+                
+                const originX = canvas.width / (2 * state.view.zoom);
+                const originY = canvas.height / (2 * state.view.zoom);
+                
+                const worldX = (touchX - state.view.offsetX) / state.view.zoom - originX;
+                const worldY = (touchY - state.view.offsetY) / state.view.zoom - originY;
+                
+                // Calculate offset from drag start
+                const deltaX = worldX - dragStartPos.x;
+                const deltaY = worldY - dragStartPos.y;
+                
+                // Update all cards in the group
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    const startPos = groupStartPositions.get(cardId);
+                    if (card && startPos) {
+                        card.x = startPos.x + deltaX / CELL_SIZE;
+                        card.y = startPos.y + deltaY / CELL_SIZE;
+                    }
+                }
+                
+                touchHasDragged = true;
+                render();
+            }
+            // Single-finger panning removed - only two-finger panning allowed
+        });
+
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            
+            const touches = Array.from(e.touches);
+            
+            if (isDraggingGroup && touches.length === 0) {
+                // Group drag ended - snap to grid
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    if (card && card.x !== null) {
+                        card.x = Math.round(card.x);
+                        card.y = Math.round(card.y);
+                    }
+                }
+                
+                // Check for collisions
+                let hasCollision = false;
+                for (const cardId of draggedGroup) {
+                    const card = getCardById(cardId);
+                    if (card && card.x !== null) {
+                        for (const otherCard of state.cards) {
+                            if (draggedGroup.has(otherCard.id)) continue;
+                            if (otherCard.x === card.x && otherCard.y === card.y && otherCard.z === card.z) {
+                                hasCollision = true;
+                                break;
+                            }
+                        }
+                        if (hasCollision) break;
+                    }
+                }
+                
+                if (hasCollision) {
+                    // Restore original positions
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        const startPos = groupStartPositions.get(cardId);
+                        if (card && startPos) {
+                            card.x = startPos.x;
+                            card.y = startPos.y;
+                        }
+                    }
+                    showToast('Cannot place group here - cards would overlap', 'error');
+                } else {
+                    // Mark as manually positioned
+                    for (const cardId of draggedGroup) {
+                        const card = getCardById(cardId);
+                        if (card && card.x !== null) {
+                            card.manuallyPositioned = true;
+                        }
+                    }
+                    saveToLocalStorage();
+                    saveHistory();
+                }
+                
+                isDraggingGroup = false;
+                draggedGroup = null;
+                touchStartCard = null;
+                groupStartPositions.clear();
+                render();
+            } else if (touches.length === 0) {
+                // All touches ended
+                if (isPinching) {
+                    isPinching = false;
+                    isTouchPanning = false;
+                    touchStartPositions = [];
+                } else if (!touchHasDragged && touchStartCard) {
+                    // Single tap on card - check for double-tap
+                    const now = Date.now();
+                    const timeSinceLastTouch = now - lastTouchTime;
+                    
+                    if (timeSinceLastTouch < 300 && touchStartCard.id === lastTouchedCardId) {
+                        // Double-tap detected - select card
+                        state.currentCardId = touchStartCard.id;
+                        saveToLocalStorage();
+                        render();
+                        showToast(`Set ${touchStartCard.num} as current card`, 'success');
+                        lastTouchedCardId = null; // Reset to prevent triple-tap
+                    } else {
+                        lastTouchedCardId = touchStartCard.id;
+                    }
+                    
+                    lastTouchTime = now;
+                    touchStartCard = null;
+                }
+                
+                isTouchPanning = false;
+                touchHasDragged = false;
+            }
+        });
+
+        canvas.addEventListener('touchcancel', (e) => {
+            e.preventDefault();
+            // Reset all touch states
+            isPinching = false;
+            isTouchPanning = false;
+            isDraggingGroup = false;
+            touchHasDragged = false;
+            touchStartPositions = [];
+            touchStartCard = null;
+            draggedGroup = null;
+            groupStartPositions.clear();
         });
 
         function isModalOpen() {
