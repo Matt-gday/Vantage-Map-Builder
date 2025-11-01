@@ -1565,15 +1565,25 @@
                 let card = getCardByNumber(cardNum);
                 let isNewCard = false;
                 let newLink = null;
+                let originalPosition = null; // Store original position for rollback if needed
+                let clearedCards = []; // Track cards whose positions were cleared for group merging
+                let allCardPositionsSnapshot = null; // Snapshot of all card positions before any changes
                 
-                if (card && state.cards.length > 0 && !currentCard) {
-                    console.error('Cannot add link without current card');
-                    showToast('Error: Cannot add link without a current card', 'error');
-                    return;
-                }
-
-                // Create new card or link to existing
-                if (!card) {
+                // If card exists, check if we're trying to create a duplicate or link to it
+                if (card) {
+                    // Check if we're trying to link to this existing card (which requires a currentCard and direction)
+                    const isLinkingToExisting = currentCard && selectedDirection && currentCard.id !== card.id;
+                    
+                    if (!isLinkingToExisting) {
+                        // We're trying to create a duplicate card - prevent this
+                        console.error('Card number already exists:', cardNum);
+                        showToast(`Error: Card ${cardNum} already exists. To link to it, select a direction from your current card.`, 'error');
+                        return;
+                    }
+                    // Otherwise, we're linking to an existing card (which is allowed)
+                    console.log('Linking to existing card:', card.num, 'manuallyPositioned:', card.manuallyPositioned);
+                } else {
+                    // Card doesn't exist, create new one
                     isNewCard = true;
                     card = {
                         id: generateId('card'),
@@ -1588,13 +1598,37 @@
                     };
                     state.cards.push(card);
                     console.log('Created new card:', card);
-                } else {
-                    // Linking to existing card - preserve its manual positioning flag
-                    console.log('Linking to existing card:', card.num, 'manuallyPositioned:', card.manuallyPositioned);
+                }
+                
+                // Validate: Can't link without a current card (for cards after the first)
+                if (state.cards.length > 1 && !currentCard && selectedDirection) {
+                    console.error('Cannot add link without current card');
+                    showToast('Error: Cannot add link without a current card', 'error');
+                    // Rollback if we just created a card
+                    if (isNewCard) {
+                        const cardIndex = state.cards.indexOf(card);
+                        state.cards.splice(cardIndex, 1);
+                    }
+                    return;
                 }
 
                 // Create link if not first card
                 if (currentCard && selectedDirection) {
+                    // If this is a cardinal connection to an existing card, check groups BEFORE adding the link
+                    let fromGroupBeforeLink = null;
+                    let toGroupBeforeLink = null;
+                    if (selectedDirection !== 'other' && !isNewCard) {
+                        console.log('Cardinal link to existing card - checking groups BEFORE adding link');
+                        const groupsBeforeLink = getCardinalConnectivityGroups();
+                        for (const group of groupsBeforeLink) {
+                            if (group.has(currentCard.id)) fromGroupBeforeLink = group;
+                            if (group.has(card.id)) toGroupBeforeLink = group;
+                        }
+                        console.log('Before link - From group size:', fromGroupBeforeLink ? fromGroupBeforeLink.size : 0, 
+                                    'To group size:', toGroupBeforeLink ? toGroupBeforeLink.size : 0);
+                        console.log('Groups are', fromGroupBeforeLink === toGroupBeforeLink ? 'SAME' : 'DIFFERENT');
+                    }
+                    
                     newLink = {
                         id: generateId('link'),
                         from: currentCard.id,
@@ -1605,9 +1639,35 @@
                     state.links.push(newLink);
                     console.log('Created link:', newLink);
                     
-                    // If this is a cardinal connection (not "other"), ensure proper adjacency
-                    if (selectedDirection !== 'other' && !isNewCard) {
+                    // Save a complete snapshot of ALL card positions BEFORE clearing anything
+                    // This ensures we can fully restore the state if there's a collision
+                    allCardPositionsSnapshot = state.cards.map(c => ({
+                        card: c,
+                        x: c.x,
+                        y: c.y,
+                        z: c.z,
+                        positioned: c.positioned,
+                        manuallyPositioned: c.manuallyPositioned
+                    }));
+                    console.log('Saved snapshot of all card positions before any clearing');
+                    
+                    // If this is a cardinal connection (not "other" or vertical), ensure proper adjacency
+                    // Vertical connections (up/down) are simpler - they just change z-level at same x,y
+                    const isVertical = selectedDirection === 'up' || selectedDirection === 'down';
+                    const isCardinal = selectedDirection === 'N' || selectedDirection === 'S' || 
+                                      selectedDirection === 'E' || selectedDirection === 'W';
+                    
+                    if (isCardinal && !isNewCard) {
                         console.log('Cardinal link created - ensuring proper adjacency');
+                        
+                        // Save original position in case repositioning fails
+                        originalPosition = {
+                            x: card.x,
+                            y: card.y,
+                            z: card.z,
+                            positioned: card.positioned,
+                            manuallyPositioned: card.manuallyPositioned
+                        };
                         
                         // Always clear target card position when linking to existing card with cardinal direction
                         // This ensures it gets repositioned to be properly adjacent
@@ -1617,31 +1677,117 @@
                         card.z = null;
                         card.positioned = false;
                         card.manuallyPositioned = false;
-                        console.log('Cleared position for target card:', card.num);
+                        console.log('Cleared position for target card:', card.num, 'Original position:', originalPosition);
                         
-                        // Also check if we're connecting separate groups - if so, clear the entire "to" group
-                        // Get groups AFTER adding the link so we see the merged group
-                        const groups = getCardinalConnectivityGroups();
-                        let fromGroup = null;
-                        let toGroup = null;
-                        for (const group of groups) {
-                            if (group.has(currentCard.id)) fromGroup = group;
-                            if (group.has(card.id)) toGroup = group;
-                        }
+                        // Use the groups we captured BEFORE adding the link
+                        const fromGroup = fromGroupBeforeLink;
+                        const toGroup = toGroupBeforeLink;
                         
-                        // If connecting two different groups, also clear positions for other cards in "to" group
+                        // If connecting two different groups, we need to check for collisions and track cards
                         if (fromGroup !== toGroup && fromGroup && toGroup && toGroup.size > 1) {
-                            console.log('Linking two separate groups - clearing other cards in target group');
-                            for (const cardId of toGroup) {
-                                if (cardId === card.id) continue; // Already cleared above
-                                const groupCard = getCardById(cardId);
-                                if (groupCard && !groupCard.manuallyPositioned) {
-                                    groupCard.x = null;
-                                    groupCard.y = null;
-                                    groupCard.z = null;
-                                    groupCard.positioned = false;
-                                    groupCard.manuallyPositioned = false;
-                                    console.log('Cleared position for card in target group:', groupCard.num);
+                            // Calculate expected position for the target card
+                            const expectedPos = calculateNewPosition(currentCard, selectedDirection);
+                            
+                            // Check if repositioning would cause a collision with cards in the "from" group
+                            let wouldCollide = false;
+                            if (expectedPos) {
+                                for (const cardId of fromGroup) {
+                                    const fromGroupCard = getCardById(cardId);
+                                    if (fromGroupCard && fromGroupCard.x !== null && 
+                                        fromGroupCard.x === expectedPos.x && 
+                                        fromGroupCard.y === expectedPos.y && 
+                                        fromGroupCard.z === expectedPos.z &&
+                                        fromGroupCard.id !== card.id) {
+                                        wouldCollide = true;
+                                        console.log(`Would collide with card ${fromGroupCard.num} at (${expectedPos.x},${expectedPos.y},${expectedPos.z})`);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (wouldCollide) {
+                                // Collision detected - rollback the link immediately
+                                console.error('Collision detected when merging groups - rolling back link');
+                                
+                                // Remove the link we just created
+                                if (newLink) {
+                                    const linkIndex = state.links.indexOf(newLink);
+                                    state.links.splice(linkIndex, 1);
+                                    console.log('Removed link due to collision');
+                                }
+                                
+                                // Restore card position
+                                card.x = originalPosition.x;
+                                card.y = originalPosition.y;
+                                card.z = originalPosition.z;
+                                card.positioned = originalPosition.positioned;
+                                card.manuallyPositioned = originalPosition.manuallyPositioned;
+                                console.log('Restored card position due to collision');
+                                
+                                // Restore old current card
+                                state.currentCardId = oldCurrentCardId;
+                                
+                                render();
+                                showToast(`Error: Cannot link ${cardNum} ${selectedDirection.toUpperCase()} from ${currentCard.num}. Position would conflict with existing cards.`, 'error');
+                                return; // Don't continue, let user try again
+                            } else {
+                                // Safe to clear positions - track ALL cards in both groups BEFORE clearing
+                                // solveLayout will clear positions for all non-manually-positioned cards in merged groups
+                                console.log('Linking two separate groups - tracking all cards before clearing');
+                                
+                                // Track ALL non-manually-positioned cards in both groups BEFORE clearing
+                                // This ensures we can restore them if repositioning fails
+                                for (const cardId of fromGroup) {
+                                    const groupCard = getCardById(cardId);
+                                    if (groupCard && !groupCard.manuallyPositioned && groupCard.x !== null) {
+                                        const alreadyTracked = clearedCards.some(c => c.card.id === groupCard.id);
+                                        if (!alreadyTracked) {
+                                            clearedCards.push({
+                                                card: groupCard,
+                                                originalPos: {
+                                                    x: groupCard.x,
+                                                    y: groupCard.y,
+                                                    z: groupCard.z,
+                                                    positioned: groupCard.positioned,
+                                                    manuallyPositioned: groupCard.manuallyPositioned
+                                                }
+                                            });
+                                            console.log('Tracking card in from group:', groupCard.num);
+                                        }
+                                    }
+                                }
+                                for (const cardId of toGroup) {
+                                    const groupCard = getCardById(cardId);
+                                    if (groupCard && !groupCard.manuallyPositioned && groupCard.x !== null) {
+                                        const alreadyTracked = clearedCards.some(c => c.card.id === groupCard.id);
+                                        if (!alreadyTracked) {
+                                            clearedCards.push({
+                                                card: groupCard,
+                                                originalPos: {
+                                                    x: groupCard.x,
+                                                    y: groupCard.y,
+                                                    z: groupCard.z,
+                                                    positioned: groupCard.positioned,
+                                                    manuallyPositioned: groupCard.manuallyPositioned
+                                                }
+                                            });
+                                            console.log('Tracking card in to group:', groupCard.num);
+                                        }
+                                    }
+                                }
+                                
+                                // Now clear positions for cards in "to" group
+                                for (const cardId of toGroup) {
+                                    if (cardId === card.id) continue; // Already cleared above
+                                    const groupCard = getCardById(cardId);
+                                    if (groupCard && !groupCard.manuallyPositioned) {
+                                        groupCard.x = null;
+                                        groupCard.y = null;
+                                        groupCard.z = null;
+                                        groupCard.positioned = false;
+                                        groupCard.manuallyPositioned = false;
+                                        console.log('Cleared position for card in target group:', groupCard.num);
+                                    }
                                 }
                             }
                         }
@@ -1649,8 +1795,23 @@
                 }
 
                 // Set as current card
-                state.currentCardId = card.id;
-                console.log('Set current card to:', card.id);
+                if (isNewCard) {
+                    // New cards always become current
+                    state.currentCardId = card.id;
+                    console.log('Set current card to new card:', card.id);
+                } else {
+                    // For existing cards: only switch to linked card if "Other" connection
+                    // For cardinal connections, we'll switch after verifying repositioning succeeded
+                    if (selectedDirection === 'other') {
+                        // "Other" connections - switch highlight to the card we linked to
+                        state.currentCardId = card.id;
+                        console.log('Linking with "Other" - switching current card to:', card.id);
+                    } else {
+                        // Cardinal connections - keep current card for now, will switch after verification
+                        console.log('Linking with cardinal direction - keeping current card for now:', currentCard ? currentCard.id : 'none');
+                    }
+                }
+                
                 console.log('Target card position after clearing:', card.x, card.y, card.z, 'manuallyPositioned:', card.manuallyPositioned);
                 if (currentCard) {
                     console.log('Current card position:', currentCard.x, currentCard.y, currentCard.z, 'manuallyPositioned:', currentCard.manuallyPositioned);
@@ -1685,6 +1846,22 @@
                         console.log('Removed link due to collision');
                     }
                     
+                    // Restore ALL other card positions from the snapshot (if available)
+                    if (allCardPositionsSnapshot) {
+                        console.log('Restoring all other card positions from snapshot');
+                        for (const snapshot of allCardPositionsSnapshot) {
+                            // Skip the card we just removed
+                            if (snapshot.card.id === card.id) continue;
+                            
+                            snapshot.card.x = snapshot.x;
+                            snapshot.card.y = snapshot.y;
+                            snapshot.card.z = snapshot.z;
+                            snapshot.card.positioned = snapshot.positioned;
+                            snapshot.card.manuallyPositioned = snapshot.manuallyPositioned;
+                        }
+                        console.log('Restored all other card positions from snapshot');
+                    }
+                    
                     // Restore old current card
                     state.currentCardId = oldCurrentCardId;
                     console.log('Restored current card to:', oldCurrentCardId);
@@ -1693,11 +1870,112 @@
                     return; // Don't close modal, let user try again
                 }
                 
-                // For existing cards being linked, they should already have a position
-                // If linking to an existing card, just create the link and we're done
+                // Check if linking to existing card with cardinal direction failed to reposition
+                // Vertical connections (up/down) don't need this check - they're always valid
+                const isCardinalLink = !isNewCard && selectedDirection && 
+                                      (selectedDirection === 'N' || selectedDirection === 'S' || 
+                                       selectedDirection === 'E' || selectedDirection === 'W');
+                
+                if (isCardinalLink) {
+                    // Calculate expected position based on direction from current card
+                    const expectedPos = currentCard ? calculateNewPosition(currentCard, selectedDirection) : null;
+                    
+                    // Check if repositioning failed:
+                    // 1. Card is unpositioned (shouldn't happen after solver, but check anyway)
+                    // 2. Card's position doesn't match expected position (repositioning failed due to collision)
+                    // 3. Card ended up in a conflicting position (occupying same space as another card)
+                    const repositionFailed = (card.x === null) || 
+                                           (expectedPos && (card.x !== expectedPos.x || card.y !== expectedPos.y || card.z !== expectedPos.z)) ||
+                                           (card.x !== null && checkCollision(card.x, card.y, card.z, card.id));
+                    
+                    // Check if any tracked cards failed to reposition
+                    let anyClearedCardFailed = false;
+                    for (const cleared of clearedCards) {
+                        if (cleared.card.x === null) {
+                            anyClearedCardFailed = true;
+                            console.error(`Card ${cleared.card.num} failed to reposition - still unpositioned`);
+                            break;
+                        }
+                        // Also check if the card ended up in a conflicting position (occupying same space as another card)
+                        if (checkCollision(cleared.card.x, cleared.card.y, cleared.card.z, cleared.card.id)) {
+                            anyClearedCardFailed = true;
+                            console.error(`Card ${cleared.card.num} ended up in conflicting position (${cleared.card.x},${cleared.card.y},${cleared.card.z})`);
+                            break;
+                        }
+                    }
+                    
+                    if (repositionFailed || anyClearedCardFailed) {
+                        console.error('Failed to reposition existing card after cardinal link - impossible position');
+                        console.log('Expected position:', expectedPos);
+                        console.log('Actual position:', card.x, card.y, card.z);
+                        if (anyClearedCardFailed) {
+                            console.log('One or more cards in "to" group failed to reposition');
+                        }
+                        
+                        // Rollback the link
+                        if (newLink) {
+                            const linkIndex = state.links.indexOf(newLink);
+                            state.links.splice(linkIndex, 1);
+                            console.log('Removed link due to impossible repositioning');
+                        }
+                        
+                        // Restore ALL card positions from the snapshot (if available)
+                        if (allCardPositionsSnapshot) {
+                            console.log('Restoring all card positions from snapshot');
+                            for (const snapshot of allCardPositionsSnapshot) {
+                                snapshot.card.x = snapshot.x;
+                                snapshot.card.y = snapshot.y;
+                                snapshot.card.z = snapshot.z;
+                                snapshot.card.positioned = snapshot.positioned;
+                                snapshot.card.manuallyPositioned = snapshot.manuallyPositioned;
+                            }
+                            console.log('Restored all card positions from snapshot');
+                        }
+                        
+                        // Restore old current card
+                        state.currentCardId = oldCurrentCardId;
+                        console.log('Restored current card to:', oldCurrentCardId);
+                        
+                        console.log('Full rollback complete after collision detection');
+                        render();
+                        showToast(`Error: Cannot link ${cardNum} ${selectedDirection.toUpperCase()} from ${currentCard.num}. Position would conflict with existing cards.`, 'error');
+                        return; // Don't close modal, let user try again
+                    }
+                }
+                
+                // For existing cards being linked, check if repositioning was successful
                 if (!isNewCard && card.x !== null) {
                     console.log('Successfully linked to existing card:', card.num);
-                    // Link was created, card exists and is positioned, all good
+                    
+                    const isVerticalLink = selectedDirection === 'up' || selectedDirection === 'down';
+                    const isCardinalLinkCheck = selectedDirection === 'N' || selectedDirection === 'S' || 
+                                               selectedDirection === 'E' || selectedDirection === 'W';
+                    
+                    // Vertical connections are always valid - just switch highlight
+                    if (isVerticalLink) {
+                        state.currentCardId = card.id;
+                        console.log('Vertical link created - switching current card to:', card.id);
+                    }
+                    // For cardinal connections, verify it was repositioned correctly
+                    else if (isCardinalLinkCheck) {
+                        const expectedPos = currentCard ? calculateNewPosition(currentCard, selectedDirection) : null;
+                        const repositionedCorrectly = expectedPos && 
+                            card.x === expectedPos.x && 
+                            card.y === expectedPos.y && 
+                            card.z === expectedPos.z;
+                        
+                        if (repositionedCorrectly) {
+                            // Successfully repositioned - switch current card to the linked card
+                            state.currentCardId = card.id;
+                            console.log('Cardinal link repositioned successfully - switching current card to:', card.id);
+                        } else {
+                            // Card exists but wasn't repositioned (might have been in same group)
+                            // Switch current card anyway since we're linking to it
+                            state.currentCardId = card.id;
+                            console.log('Linking to existing card - switching current card to:', card.id);
+                        }
+                    }
+                    // For "Other" connections, current card was already switched above
                 }
 
                 // Update meta
@@ -1707,14 +1985,31 @@
                 console.log('Saving to localStorage...');
                 saveToLocalStorage();
                 
-                console.log('Centering on new card...');
-                centerOnCard(card, 0.8);
+                // Center on new card if it's a new card, or if linking to existing (switched highlight)
+                if (isNewCard) {
+                    console.log('Centering on new card...');
+                    centerOnCard(card, 0.8);
+                } else if (!isNewCard && state.currentCardId === card.id) {
+                    // Linked to existing card and switched highlight - center on it
+                    console.log('Centering on linked card (highlight switched)...');
+                    centerOnCard(card, 0.8);
+                } else {
+                    console.log('Linking to existing card - keeping current view');
+                    render(); // Just render to show the new link
+                }
 
                 console.log('Closing modal...');
                 closeModal();
                 
-                const dirText = currentCard && selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : ' (origin)';
-                showToast(`Added ${cardNum}${dirText}`, 'success');
+                // Show appropriate message based on whether we created a new card or linked to existing
+                if (isNewCard) {
+                    const dirText = currentCard && selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : ' (origin)';
+                    showToast(`Added ${cardNum}${dirText}`, 'success');
+                } else {
+                    // Linking to existing card
+                    const dirText = currentCard && selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : '';
+                    showToast(`Linked to ${cardNum}${dirText}`, 'success');
+                }
                 
                 // Update layer selector with new z-levels
                 updateLayerSelector();
