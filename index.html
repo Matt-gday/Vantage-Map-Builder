@@ -41,8 +41,8 @@
         }
 
         #add-btn {
-            order: 0;
-            flex: 0 0 auto;
+            flex: 1 1 auto; /* Allow it to grow and fill available space */
+            min-width: 80px; /* But keep a minimum width */
         }
 
         .toolbar-btn {
@@ -70,7 +70,9 @@
         }
 
         .toolbar-btn.primary:hover {
-            background: #0284C7;
+            background: #0369A1 !important; /* Darker blue for better contrast */
+            border-color: #0369A1 !important;
+            color: white !important;
         }
 
         .toolbar-btn:hover:not(:disabled) {
@@ -233,6 +235,62 @@
             margin-bottom: 8px;
         }
 
+        .keypad-orientation-container {
+            display: flex;
+            gap: 16px;
+            align-items: stretch; /* Make both children same height */
+            margin-top: 8px; /* Move margin to container for alignment */
+        }
+
+        .keypad-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .numeric-keypad {
+            margin-top: 0; /* Remove margin since container has it */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            max-width: 100%;
+            margin-left: 0;
+            margin-right: 0;
+        }
+
+        .orientation-wrapper {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 5px; /* Match keypad gap */
+            align-items: stretch;
+            margin-top: 0; /* Align with keypad top */
+        }
+
+        .orientation-wrapper .form-label {
+            display: none; /* Hide label as requested */
+        }
+
+        .orientation-btn {
+            flex: 1 1 0;
+            padding: 8px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 120px;
+            min-height: 0; /* Allow flex to control height */
+        }
+
         .form-label {
             display: block;
             font-size: 14px;
@@ -261,34 +319,28 @@
             border-color: #0EA5E9;
         }
 
-        .numeric-keypad {
-            margin-top: 12px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 8px;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
         .keypad-row {
             display: contents;
         }
 
         .keypad-btn {
-            padding: 16px;
+            padding: 8px 10px;
             background: white;
             border: 2px solid #CBD5E1;
             border-radius: 8px;
             cursor: pointer;
             font-family: inherit;
-            font-size: 20px;
+            font-size: 16px;
             font-weight: 600;
             color: #0F172A;
             transition: all 0.15s;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            min-height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .keypad-btn:active {
@@ -304,12 +356,12 @@
         }
 
         .clear-btn {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: 500;
         }
 
         .backspace-btn {
-            font-size: 24px;
+            font-size: 18px;
         }
 
         .direction-grid {
@@ -364,23 +416,6 @@
 
         .other-button {
             width: 100%;
-        }
-
-        .orientation-btn {
-            flex: 1;
-            padding: 8px;
-            background: white;
-            border: 2px solid #CBD5E1;
-            border-radius: 6px;
-            cursor: pointer;
-            font-family: inherit;
-            font-size: 12px;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
         }
 
         .orientation-btn:hover {
@@ -499,6 +534,14 @@
                 gap: 6px;
             }
 
+            .toolbar-divider {
+                display: none; /* Hide dividers on mobile for cleaner look */
+            }
+
+            .toolbar-group {
+                gap: 6px;
+            }
+
             .toolbar-btn {
                 padding: 6px 10px;
                 font-size: 12px;
@@ -508,6 +551,7 @@
                 order: 5;
                 flex: 1 1 100%;
                 margin-top: 4px;
+                min-width: auto; /* Remove min-width on mobile */
             }
 
             #search-input {
@@ -543,6 +587,23 @@
 
             .form-group.compact {
                 margin-bottom: 6px;
+            }
+
+            /* Stack keypad and orientation vertically on mobile */
+            .keypad-orientation-container {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .orientation-wrapper {
+                width: 100%;
+                height: auto; /* Remove fixed height on mobile */
+            }
+
+            .orientation-btn {
+                width: 100%;
+                flex: 0 0 auto; /* Don't stretch on mobile */
+                min-height: 50px;
             }
 
             .numeric-keypad {
@@ -590,21 +651,33 @@
 <body>
     <!-- Toolbar -->
     <div id="toolbar">
-        <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
-        <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
-        <button class="toolbar-btn" id="export-btn">Export JSON</button>
-        <button class="toolbar-btn" id="import-btn">Import JSON</button>
-        <button class="toolbar-btn" id="zoom-fit-btn">Show Entire Map</button>
-        <button class="toolbar-btn primary" id="add-btn">Add +</button>
-        <div class="toolbar-spacer"></div>
-        <div class="search-wrapper">
-            <span class="search-icon">⌕</span>
-            <input type="search" id="search-input" placeholder="Find 007..." maxlength="3" inputmode="numeric">
+        <!-- History Group (left) -->
+        <div class="toolbar-group">
+            <button class="toolbar-btn" id="undo-btn" title="Undo (Ctrl+Z)" disabled>↶ Undo</button>
+            <button class="toolbar-btn" id="redo-btn" title="Redo (Ctrl+Y)" disabled>↷ Redo</button>
         </div>
-        <select id="layer-select">
-            <!-- Dynamically populated based on card z-levels -->
-        </select>
-        <button class="toolbar-btn" id="reset-btn" style="color: #EF4444; border-color: #EF4444;">Reset</button>
+        
+        <div class="toolbar-divider"></div>
+        
+        <!-- Navigation & Actions Group (center-left) -->
+        <div class="toolbar-group" style="flex: 1 1 auto; display: flex; align-items: center; gap: 8px;">
+            <select id="layer-select">
+                <!-- Dynamically populated based on card z-levels -->
+            </select>
+            <button class="toolbar-btn" id="zoom-fit-btn">Show Entire Map</button>
+            <button class="toolbar-btn primary" id="add-btn">Add +</button>
+        </div>
+        
+        <!-- Search & File Operations (right) -->
+        <div class="toolbar-group">
+            <div class="search-wrapper">
+                <span class="search-icon">⌕</span>
+                <input type="search" id="search-input" placeholder="Find 007..." maxlength="3" inputmode="numeric">
+            </div>
+            <button class="toolbar-btn" id="export-btn">Export Map</button>
+            <button class="toolbar-btn" id="import-btn">Import Map</button>
+            <button class="toolbar-btn" id="reset-btn" style="color: #EF4444; border-color: #EF4444;">Reset</button>
+        </div>
     </div>
 
     <!-- Map Container -->
@@ -621,45 +694,46 @@
                 <div class="form-group compact">
                     <label class="form-label" for="card-number">Location ID</label>
                     <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric" readonly>
-                    <div class="numeric-keypad">
-                        <div class="keypad-row">
-                            <button class="keypad-btn" data-key="1">1</button>
-                            <button class="keypad-btn" data-key="2">2</button>
-                            <button class="keypad-btn" data-key="3">3</button>
+                    <div class="keypad-orientation-container">
+                        <div class="keypad-wrapper">
+                            <div class="numeric-keypad">
+                                <div class="keypad-row">
+                                    <button class="keypad-btn" data-key="1">1</button>
+                                    <button class="keypad-btn" data-key="2">2</button>
+                                    <button class="keypad-btn" data-key="3">3</button>
+                                </div>
+                                <div class="keypad-row">
+                                    <button class="keypad-btn" data-key="4">4</button>
+                                    <button class="keypad-btn" data-key="5">5</button>
+                                    <button class="keypad-btn" data-key="6">6</button>
+                                </div>
+                                <div class="keypad-row">
+                                    <button class="keypad-btn" data-key="7">7</button>
+                                    <button class="keypad-btn" data-key="8">8</button>
+                                    <button class="keypad-btn" data-key="9">9</button>
+                                </div>
+                                <div class="keypad-row">
+                                    <button class="keypad-btn clear-btn" data-key="clear">Clear</button>
+                                    <button class="keypad-btn" data-key="0">0</button>
+                                    <button class="keypad-btn backspace-btn" data-key="backspace">⌫</button>
+                                </div>
+                            </div>
                         </div>
-                        <div class="keypad-row">
-                            <button class="keypad-btn" data-key="4">4</button>
-                            <button class="keypad-btn" data-key="5">5</button>
-                            <button class="keypad-btn" data-key="6">6</button>
-                        </div>
-                        <div class="keypad-row">
-                            <button class="keypad-btn" data-key="7">7</button>
-                            <button class="keypad-btn" data-key="8">8</button>
-                            <button class="keypad-btn" data-key="9">9</button>
-                        </div>
-                        <div class="keypad-row">
-                            <button class="keypad-btn clear-btn" data-key="clear">Clear</button>
-                            <button class="keypad-btn" data-key="0">0</button>
-                            <button class="keypad-btn backspace-btn" data-key="backspace">⌫</button>
+                        <div class="orientation-wrapper">
+                            <button type="button" class="orientation-btn active" data-orientation="landscape">
+                                <div style="width: 24px; height: 16px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                                <span>Landscape</span>
+                            </button>
+                            <button type="button" class="orientation-btn" data-orientation="portrait">
+                                <div style="width: 16px; height: 24px; border: 2px solid currentColor; border-radius: 4px;"></div>
+                                <span>Portrait</span>
+                            </button>
                         </div>
                     </div>
                 </div>
                 <div class="form-group compact">
                     <label class="form-label" for="card-note">Notes (optional)</label>
                     <input type="search" class="form-input" id="card-note" placeholder="e.g., Flooded Cave">
-                </div>
-                <div class="form-group compact">
-                    <label class="form-label">Orientation</label>
-                    <div style="display: flex; gap: 8px;">
-                        <button type="button" class="orientation-btn active" data-orientation="landscape">
-                            <div style="width: 32px; height: 20px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                            Landscape
-                        </button>
-                        <button type="button" class="orientation-btn" data-orientation="portrait">
-                            <div style="width: 20px; height: 32px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                            Portrait
-                        </button>
-                    </div>
                 </div>
                 <div class="form-group compact">
                     <label class="form-label" id="direction-label">Direction</label>
@@ -781,6 +855,16 @@
                 history.shift();
             } else {
                 historyIndex++;
+            }
+            
+            // Save history to localStorage
+            try {
+                localStorage.setItem('vantage-map-history', JSON.stringify({
+                    history: history,
+                    historyIndex: historyIndex
+                }));
+            } catch (err) {
+                console.warn('Failed to save history to localStorage:', err);
             }
             
             updateUndoRedoButtons();
@@ -1568,14 +1652,22 @@
                 state.currentCardId = card.id;
                 console.log('Set current card to:', card.id);
                 console.log('Target card position after clearing:', card.x, card.y, card.z, 'manuallyPositioned:', card.manuallyPositioned);
-                console.log('Current card position:', currentCard.x, currentCard.y, currentCard.z, 'manuallyPositioned:', currentCard.manuallyPositioned);
+                if (currentCard) {
+                    console.log('Current card position:', currentCard.x, currentCard.y, currentCard.z, 'manuallyPositioned:', currentCard.manuallyPositioned);
+                } else {
+                    console.log('No current card (first card)');
+                }
 
                 // Run solver
                 console.log('Running layout solver...');
                 solveLayout();
                 
                 console.log('After solver - Target card position:', card.x, card.y, card.z);
-                console.log('After solver - Current card position:', currentCard.x, currentCard.y, currentCard.z);
+                if (currentCard) {
+                    console.log('After solver - Current card position:', currentCard.x, currentCard.y, currentCard.z);
+                } else {
+                    console.log('After solver - No previous current card (first card)');
+                }
 
                 // Check if the new card was successfully positioned (no collision)
                 // Only check for new cards - existing cards may already be positioned
@@ -1621,7 +1713,7 @@
                 console.log('Closing modal...');
                 closeModal();
                 
-                const dirText = selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : ' (origin)';
+                const dirText = currentCard && selectedDirection ? ` (${selectedDirection.toUpperCase()} from ${currentCard.num})` : ' (origin)';
                 showToast(`Added ${cardNum}${dirText}`, 'success');
                 
                 // Update layer selector with new z-levels
@@ -3523,6 +3615,7 @@
             // Clear history and save imported state
             history = [];
             historyIndex = -1;
+            localStorage.removeItem('vantage-map-history'); // Clear old history when importing
             saveHistory();
             
             // Update layer selector with imported z-levels
@@ -3565,8 +3658,57 @@
                     nextCardId = data.nextCardId || 1;
                     nextLinkId = data.nextLinkId || 1;
 
-                    // Initialize history with current state
-                    saveHistory();
+                    // Load history from localStorage
+                    const savedHistory = localStorage.getItem('vantage-map-history');
+                    if (savedHistory) {
+                        try {
+                            const historyData = JSON.parse(savedHistory);
+                            // Validate that history matches current state structure
+                            if (historyData.history && Array.isArray(historyData.history)) {
+                                history = historyData.history;
+                                historyIndex = historyData.historyIndex !== undefined ? historyData.historyIndex : history.length - 1;
+                                
+                                // Validate historyIndex is within bounds
+                                if (historyIndex < 0 || historyIndex >= history.length) {
+                                    historyIndex = history.length - 1;
+                                }
+                                
+                                // Limit history size if it exceeds MAX_HISTORY
+                                if (history.length > MAX_HISTORY) {
+                                    const excess = history.length - MAX_HISTORY;
+                                    history = history.slice(excess);
+                                    historyIndex = Math.max(0, historyIndex - excess);
+                                }
+                                
+                                // If current state doesn't match the history at current index, add it as new entry
+                                // This ensures consistency if the map was saved after undoing
+                                const lastSnapshot = history[historyIndex];
+                                const currentStateMatches = lastSnapshot && 
+                                    JSON.stringify(lastSnapshot.cards) === JSON.stringify(state.cards) &&
+                                    JSON.stringify(lastSnapshot.links) === JSON.stringify(state.links) &&
+                                    lastSnapshot.currentCardId === state.currentCardId;
+                                
+                                if (!currentStateMatches && history.length > 0) {
+                                    // Current state differs from history, add it as a new entry
+                                    // This can happen if the map was saved after undoing/redoing
+                                    saveHistory(); // This will add current state and save to localStorage
+                                } else {
+                                    // Just update buttons, history is already loaded
+                                    updateUndoRedoButtons();
+                                }
+                            } else {
+                                // Invalid history format, initialize fresh
+                                saveHistory();
+                            }
+                        } catch (err) {
+                            console.warn('Failed to load history from localStorage:', err);
+                            // Initialize history with current state
+                            saveHistory();
+                        }
+                    } else {
+                        // No saved history, initialize with current state
+                        saveHistory();
+                    }
                     
                     // Update layer selector based on loaded cards
                     updateLayerSelector();
@@ -3628,6 +3770,7 @@
 
             // Clear localStorage
             localStorage.removeItem('vantage-map');
+            localStorage.removeItem('vantage-map-history'); // Also clear history
 
             // Clear history and save reset state
             history = [];
