@@ -597,15 +597,22 @@
             
             .toolbar-btn {
                 padding: 8px 8px; /* Reduce horizontal padding */
-                font-size: 13px; /* Slightly smaller text */
+                font-size: 15px; /* Larger text for better readability */
                 white-space: nowrap; /* Prevent text wrapping */
                 flex: 0 1 auto; /* Allow shrinking */
                 min-width: 0; /* Allow buttons to shrink below their content */
             }
             
+            #undo-btn, #redo-btn {
+                min-width: 50px; /* Make undo/redo buttons wider */
+                font-size: 20px; /* Larger icons */
+                font-weight: bold; /* Bolder icons */
+                padding: 8px 12px; /* Slightly more horizontal padding */
+            }
+            
             #layer-select {
                 padding: 8px 8px;
-                font-size: 13px;
+                font-size: 15px;
                 flex: 0 1 auto;
                 min-width: 60px;
             }
@@ -627,7 +634,7 @@
             #search-input {
                 width: 100%; /* Take full width of wrapper */
                 padding: 8px 8px 8px 28px;
-                font-size: 13px;
+                font-size: 15px;
             }
             
             .toolbar-add-row {
@@ -640,6 +647,7 @@
             #add-btn-mobile {
                 flex: 1 1 100%; /* Take full width */
                 width: 100%;
+                font-size: 16px; /* Larger text for Add button */
             }
         }
 
