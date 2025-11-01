@@ -24,21 +24,21 @@
 
         /* Toolbar */
         #toolbar {
-            height: 56px;
+            min-height: 56px;
             background: white;
             border-bottom: 1px solid #E2E8F0;
             display: flex;
+            flex-wrap: wrap;
             align-items: center;
-            padding: 0 20px;
-            gap: 12px;
+            padding: 8px 20px;
+            gap: 8px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             position: relative;
         }
 
         #add-btn {
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
+            order: 0;
+            flex: 0 0 auto;
         }
 
         .toolbar-btn {
@@ -464,12 +464,15 @@
             display: none;
         }
 
-        /* Responsive Design for Mobile/Tablet */
+        /* Responsive Design - Works on all screen sizes */
+        @media (max-width: 1024px) {
+            .toolbar-spacer {
+                display: none;
+            }
+        }
+
         @media (max-width: 768px) {
             #toolbar {
-                flex-wrap: wrap;
-                height: auto;
-                min-height: 56px;
                 padding: 8px 12px;
                 gap: 6px;
             }
@@ -477,19 +480,12 @@
             .toolbar-btn {
                 padding: 6px 10px;
                 font-size: 12px;
-                flex: 0 0 auto;
             }
 
             #add-btn {
-                position: static;
-                transform: none;
                 order: 5;
                 flex: 1 1 100%;
                 margin-top: 4px;
-            }
-
-            .toolbar-spacer {
-                display: none;
             }
 
             #search-input {
