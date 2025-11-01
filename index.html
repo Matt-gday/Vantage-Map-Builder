@@ -817,22 +817,39 @@
 
         // ===== AUTO LAYOUT SOLVER =====
         function solveLayout() {
+            console.log('solveLayout() called');
             // Clear positions only for cards that haven't been manually positioned
             state.cards.forEach(card => {
                 if (!card.manuallyPositioned) {
-                    card.x = null;
-                    card.y = null;
-                    card.z = null;
-                    card.positioned = false;
+                    // Only clear if position is not already null (to preserve cleared positions)
+                    if (card.x !== null || card.y !== null || card.z !== null) {
+                        console.log(`Clearing position for card ${card.num} (not manually positioned)`);
+                        card.x = null;
+                        card.y = null;
+                        card.z = null;
+                        card.positioned = false;
+                    }
+                } else {
+                    console.log(`Preserving manually positioned card ${card.num} at (${card.x},${card.y},${card.z})`);
                 }
             });
 
-            // Set first card to origin if not already positioned
+            // Set first card to origin if not already positioned AND not part of a group with manually positioned cards
+            // (we don't want to position it at origin if it should be positioned relative to another card)
             if (state.cards.length > 0 && state.cards[0].x === null) {
-                state.cards[0].x = 0;
-                state.cards[0].y = 0;
-                state.cards[0].z = 0;
-                state.cards[0].positioned = true;
+                // Check if there are any manually positioned cards - if so, let breadth-first propagation handle positioning
+                const hasManuallyPositioned = state.cards.some(card => card.manuallyPositioned && card.x !== null);
+                
+                if (!hasManuallyPositioned) {
+                    // Only position at origin if there are no manually positioned cards to anchor from
+                    console.log(`Positioning first card ${state.cards[0].num} at origin (no manually positioned cards)`);
+                    state.cards[0].x = 0;
+                    state.cards[0].y = 0;
+                    state.cards[0].z = 0;
+                    state.cards[0].positioned = true;
+                } else {
+                    console.log(`Skipping origin positioning for first card ${state.cards[0].num} - will be positioned relative to manually positioned cards`);
+                }
             }
 
             // Get cardinal connectivity groups BEFORE positioning
@@ -998,6 +1015,7 @@
         }
 
         function positionGroup(group, offset) {
+            console.log(`Positioning group with ${group.size} cards, offset:`, offset);
             // Check if any card in the group is manually positioned
             let hasManuallyPositioned = false;
             let anchorCard = null;
@@ -1011,6 +1029,8 @@
                     }
                 }
             }
+            
+            console.log(`Group has manually positioned cards: ${hasManuallyPositioned}, anchor:`, anchorCard?.num);
             
             // If group has manually positioned cards, preserve them but still process new cards
             if (hasManuallyPositioned) {
@@ -1053,6 +1073,7 @@
             while (changed && iterations < maxIterations) {
                 changed = false;
                 iterations++;
+                console.log(`Breadth-first iteration ${iterations}, processing ${state.links.length} links`);
 
                 for (const link of state.links) {
                     if (!link.certified) continue;
@@ -1065,20 +1086,26 @@
                     
                     // Only process if both cards are in this group
                     if (!group.has(fromCard.id) || !group.has(toCard.id)) continue;
+                    
+                    console.log(`Processing link: ${fromCard.num} -> ${toCard.num} (${link.kind}), from pos: (${fromCard.x},${fromCard.y},${fromCard.z}), to pos: (${toCard.x},${toCard.y},${toCard.z}), from manually: ${fromCard.manuallyPositioned}, to manually: ${toCard.manuallyPositioned}`);
 
                     // If from has position but to doesn't (and to is not manually positioned)
                     if (fromCard.x !== null && toCard.x === null && !toCard.manuallyPositioned) {
                         const newPos = calculateNewPosition(fromCard, link.kind);
                         if (newPos) {
                             if (checkCollision(newPos.x, newPos.y, newPos.z, toCard.id)) {
+                                console.log(`Collision detected for card ${toCard.num} at (${newPos.x},${newPos.y},${newPos.z})`);
                                 showToast(`Collision: Cell (${newPos.x},${newPos.y},${newPos.z}) already occupied`, 'error');
                                 continue;
                             }
+                            console.log(`Positioning card ${toCard.num} at (${newPos.x},${newPos.y},${newPos.z}) relative to ${fromCard.num} via ${link.kind}`);
                             toCard.x = newPos.x;
                             toCard.y = newPos.y;
                             toCard.z = newPos.z;
                             toCard.positioned = true;
                             changed = true;
+                        } else {
+                            console.log(`Could not calculate position for card ${toCard.num} from ${fromCard.num} via ${link.kind}`);
                         }
                     }
                     // If to has position but from doesn't (and from is not manually positioned)
@@ -1086,14 +1113,18 @@
                         const newPos = calculateNewPosition(toCard, reverseDirection(link.kind));
                         if (newPos) {
                             if (checkCollision(newPos.x, newPos.y, newPos.z, fromCard.id)) {
+                                console.log(`Collision detected for card ${fromCard.num} at (${newPos.x},${newPos.y},${newPos.z})`);
                                 showToast(`Collision: Cell (${newPos.x},${newPos.y},${newPos.z}) already occupied`, 'error');
                                 continue;
                             }
+                            console.log(`Positioning card ${fromCard.num} at (${newPos.x},${newPos.y},${newPos.z}) relative to ${toCard.num} via ${reverseDirection(link.kind)}`);
                             fromCard.x = newPos.x;
                             fromCard.y = newPos.y;
                             fromCard.z = newPos.z;
                             fromCard.positioned = true;
                             changed = true;
+                        } else {
+                            console.log(`Could not calculate position for card ${fromCard.num} from ${toCard.num} via ${reverseDirection(link.kind)}`);
                         }
                     }
                 }
@@ -1456,15 +1487,23 @@
                     state.links.push(newLink);
                     console.log('Created link:', newLink);
                     
-                    // If this is a cardinal connection (not "other"), clear manual positioning
-                    // for both cards so they can be repositioned to be properly adjacent
-                    if (selectedDirection !== 'other') {
-                        console.log('Cardinal link created - clearing manual positioning to allow proper adjacency');
+                    // If this is a cardinal connection (not "other"), ensure proper adjacency
+                    if (selectedDirection !== 'other' && !isNewCard) {
+                        console.log('Cardinal link created - ensuring proper adjacency');
                         
-                        // Get groups before the link (they might merge after)
+                        // Always clear target card position when linking to existing card with cardinal direction
+                        // This ensures it gets repositioned to be properly adjacent
+                        console.log('Clearing target card position to ensure cardinal adjacency');
+                        card.x = null;
+                        card.y = null;
+                        card.z = null;
+                        card.positioned = false;
+                        card.manuallyPositioned = false;
+                        console.log('Cleared position for target card:', card.num);
+                        
+                        // Also check if we're connecting separate groups - if so, clear the entire "to" group
+                        // Get groups AFTER adding the link so we see the merged group
                         const groups = getCardinalConnectivityGroups();
-                        
-                        // Find which groups contain these cards
                         let fromGroup = null;
                         let toGroup = null;
                         for (const group of groups) {
@@ -1472,20 +1511,19 @@
                             if (group.has(card.id)) toGroup = group;
                         }
                         
-                        // If connecting two different groups, reposition to be properly adjacent
-                        if (fromGroup !== toGroup && fromGroup && toGroup) {
-                            console.log('Linking two separate groups - repositioning to be adjacent');
-                            
-                            // Clear positions and manual flags for the "to" group so it can be repositioned
+                        // If connecting two different groups, also clear positions for other cards in "to" group
+                        if (fromGroup !== toGroup && fromGroup && toGroup && toGroup.size > 1) {
+                            console.log('Linking two separate groups - clearing other cards in target group');
                             for (const cardId of toGroup) {
+                                if (cardId === card.id) continue; // Already cleared above
                                 const groupCard = getCardById(cardId);
-                                if (groupCard) {
+                                if (groupCard && !groupCard.manuallyPositioned) {
                                     groupCard.x = null;
                                     groupCard.y = null;
                                     groupCard.z = null;
                                     groupCard.positioned = false;
                                     groupCard.manuallyPositioned = false;
-                                    console.log('Cleared position for card:', groupCard.num);
+                                    console.log('Cleared position for card in target group:', groupCard.num);
                                 }
                             }
                         }
@@ -1495,10 +1533,15 @@
                 // Set as current card
                 state.currentCardId = card.id;
                 console.log('Set current card to:', card.id);
+                console.log('Target card position after clearing:', card.x, card.y, card.z, 'manuallyPositioned:', card.manuallyPositioned);
+                console.log('Current card position:', currentCard.x, currentCard.y, currentCard.z, 'manuallyPositioned:', currentCard.manuallyPositioned);
 
                 // Run solver
                 console.log('Running layout solver...');
                 solveLayout();
+                
+                console.log('After solver - Target card position:', card.x, card.y, card.z);
+                console.log('After solver - Current card position:', currentCard.x, currentCard.y, currentCard.z);
 
                 // Check if the new card was successfully positioned (no collision)
                 // Only check for new cards - existing cards may already be positioned
@@ -2708,6 +2751,15 @@
             
             if (touches.length === 2) {
                 // Two-finger touch - start pinch zoom or pan
+                // Cancel any single-finger actions
+                if (isDraggingGroup) {
+                    // Cancel group drag if transitioning to two-finger
+                    isDraggingGroup = false;
+                    draggedGroup = null;
+                    touchStartCard = null;
+                    groupStartPositions.clear();
+                }
+                
                 isPinching = true;
                 isTouchPanning = true;
                 initialPinchDistance = getTouchDistance(touches);
@@ -2787,13 +2839,46 @@
             const touches = Array.from(e.touches);
             
             if (touches.length === 2) {
+                // Cancel any single-finger actions when two fingers are detected
+                if (isDraggingGroup && !isPinching) {
+                    isDraggingGroup = false;
+                    draggedGroup = null;
+                    touchStartCard = null;
+                    groupStartPositions.clear();
+                }
+                
+                // Initialize pinch if not already initialized
+                if (!isPinching) {
+                    isPinching = true;
+                    isTouchPanning = true;
+                    initialPinchDistance = getTouchDistance(touches);
+                    
+                    // Store initial state
+                    const center = getTouchCenter(touches);
+                    const rect = canvas.getBoundingClientRect();
+                    const centerX = center.x - rect.left;
+                    const centerY = center.y - rect.top;
+                    
+                    const originX = canvas.width / (2 * state.view.zoom);
+                    const originY = canvas.height / (2 * state.view.zoom);
+                    
+                    touchStartPositions.push({
+                        worldX: (centerX - state.view.offsetX) / state.view.zoom - originX,
+                        worldY: (centerY - state.view.offsetY) / state.view.zoom - originY,
+                        zoom: state.view.zoom,
+                        offsetX: state.view.offsetX,
+                        offsetY: state.view.offsetY,
+                        initialDistance: initialPinchDistance
+                    });
+                }
+                
                 const currentDistance = getTouchDistance(touches);
                 const distanceChange = Math.abs(currentDistance - initialPinchDistance);
-                const distanceChangePercent = (distanceChange / initialPinchDistance) * 100;
+                const distanceChangePercent = initialPinchDistance > 0 ? (distanceChange / initialPinchDistance) * 100 : 0;
                 
-                // If distance changed significantly (>5%), it's a pinch zoom
-                // Otherwise, it's a pan
-                if (distanceChangePercent > 5) {
+                // Use a higher threshold (10%) to distinguish pinch zoom from pan
+                // This prevents accidental zoom when panning with two fingers
+                if (distanceChangePercent > 10) {
                     // Pinch zoom
                     const scale = currentDistance / initialPinchDistance;
                     
@@ -2815,10 +2900,16 @@
                         state.view.offsetX = centerX - (initial.worldX + originX) * newZoom;
                         state.view.offsetY = centerY - (initial.worldY + originY) * newZoom;
                         
-                        // Update initial distance for smooth zooming
+                        // Update initial distance and stored positions for smooth zooming
                         initialPinchDistance = currentDistance;
                         if (touchStartPositions.length >= 3) {
-                            touchStartPositions[touchStartPositions.length - 1].zoom = newZoom;
+                            const initial = touchStartPositions[touchStartPositions.length - 1];
+                            initial.zoom = newZoom;
+                            initial.offsetX = state.view.offsetX;
+                            initial.offsetY = state.view.offsetY;
+                            // Update touch positions for panning after zoom
+                            touchStartPositions[0] = { x: touches[0].clientX, y: touches[0].clientY };
+                            touchStartPositions[1] = { x: touches[1].clientX, y: touches[1].clientY };
                         }
                     }
                 } else {
@@ -2833,6 +2924,10 @@
                         const initial = touchStartPositions[touchStartPositions.length - 1];
                         state.view.offsetX = initial.offsetX + dx;
                         state.view.offsetY = initial.offsetY + dy;
+                        
+                        // Update touch positions for smooth panning
+                        touchStartPositions[0] = { x: touches[0].clientX, y: touches[0].clientY };
+                        touchStartPositions[1] = { x: touches[1].clientX, y: touches[1].clientY };
                     }
                 }
                 
@@ -2875,6 +2970,15 @@
             e.preventDefault();
             
             const touches = Array.from(e.touches);
+            
+            // If transitioning from 2 fingers to 1 finger, cancel two-finger actions
+            if (isPinching && touches.length === 1) {
+                isPinching = false;
+                isTouchPanning = false;
+                // Reset touch positions but keep the current state
+                touchStartPositions = touches.map(t => ({ x: t.clientX, y: t.clientY }));
+                initialPinchDistance = 0;
+            }
             
             if (isDraggingGroup && touches.length === 0) {
                 // Group drag ended - snap to grid
