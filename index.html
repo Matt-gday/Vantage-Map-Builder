@@ -2808,13 +2808,16 @@
                 const originX = canvas.width / (2 * state.view.zoom);
                 const originY = canvas.height / (2 * state.view.zoom);
                 
+                touchStartPositions = touches.map(t => ({ x: t.clientX, y: t.clientY }));
                 touchStartPositions.push({
                     worldX: (centerX - state.view.offsetX) / state.view.zoom - originX,
                     worldY: (centerY - state.view.offsetY) / state.view.zoom - originY,
                     zoom: state.view.zoom,
                     offsetX: state.view.offsetX,
                     offsetY: state.view.offsetY,
-                    initialDistance: initialPinchDistance
+                    initialDistance: initialPinchDistance,
+                    startCenterX: center.x,
+                    startCenterY: center.y
                 });
             } else if (touches.length === 1) {
                 // Single-finger touch - check if touching a card
@@ -2822,43 +2825,22 @@
                 const card = getCardAtTouch(touch.clientX, touch.clientY);
                 
                 if (card) {
-                    // Check if card is in a group
-                    const groups = getCardinalConnectivityGroups();
-                    for (const group of groups) {
-                        if (group.has(card.id)) {
-                            touchStartCard = card;
-                            isDraggingGroup = true;
-                            draggedGroup = group;
-                            
-                            const rect = canvas.getBoundingClientRect();
-                            const touchX = touch.clientX - rect.left;
-                            const touchY = touch.clientY - rect.top;
-                            
-                            const originX = canvas.width / (2 * state.view.zoom);
-                            const originY = canvas.height / (2 * state.view.zoom);
-                            
-                            dragStartPos = {
-                                x: (touchX - state.view.offsetX) / state.view.zoom - originX,
-                                y: (touchY - state.view.offsetY) / state.view.zoom - originY
-                            };
-                            
-                            // Store original positions
-                            groupStartPositions.clear();
-                            for (const cardId of group) {
-                                const groupCard = getCardById(cardId);
-                                if (groupCard && groupCard.x !== null) {
-                                    groupStartPositions.set(cardId, {
-                                        x: groupCard.x,
-                                        y: groupCard.y
-                                    });
-                                }
-                            }
-                            return;
-                        }
-                    }
-                    
-                    // Card found but not in group (shouldn't happen) or single tap for double-tap detection
+                    // Store the card for potential drag, but don't start dragging yet
+                    // Wait for touchmove to detect actual movement
                     touchStartCard = card;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const touchX = touch.clientX - rect.left;
+                    const touchY = touch.clientY - rect.top;
+                    
+                    const originX = canvas.width / (2 * state.view.zoom);
+                    const originY = canvas.height / (2 * state.view.zoom);
+                    
+                    // Store initial touch position for drag calculation
+                    dragStartPos = {
+                        x: (touchX - state.view.offsetX) / state.view.zoom - originX,
+                        y: (touchY - state.view.offsetY) / state.view.zoom - originY
+                    };
                 }
                 
                 // Single finger not on card - prepare for panning (but wait for move)
@@ -2897,13 +2879,17 @@
                     const originX = canvas.width / (2 * state.view.zoom);
                     const originY = canvas.height / (2 * state.view.zoom);
                     
+                    // Clear and rebuild touchStartPositions array
+                    touchStartPositions = touches.map(t => ({ x: t.clientX, y: t.clientY }));
                     touchStartPositions.push({
                         worldX: (centerX - state.view.offsetX) / state.view.zoom - originX,
                         worldY: (centerY - state.view.offsetY) / state.view.zoom - originY,
                         zoom: state.view.zoom,
                         offsetX: state.view.offsetX,
                         offsetY: state.view.offsetY,
-                        initialDistance: initialPinchDistance
+                        initialDistance: initialPinchDistance,
+                        startCenterX: center.x,
+                        startCenterY: center.y
                     });
                 }
                 
@@ -2950,10 +2936,21 @@
                 } else {
                     // Two-finger panning (no zoom change)
                     const center = getTouchCenter(touches);
-                    const startCenter = getTouchCenter(touchStartPositions.slice(0, 2));
                     
-                    const dx = center.x - startCenter.x;
-                    const dy = center.y - startCenter.y;
+                    // Get the initial center from stored data
+                    let startCenterX, startCenterY;
+                    if (touchStartPositions.length >= 3 && touchStartPositions[touchStartPositions.length - 1].startCenterX !== undefined) {
+                        startCenterX = touchStartPositions[touchStartPositions.length - 1].startCenterX;
+                        startCenterY = touchStartPositions[touchStartPositions.length - 1].startCenterY;
+                    } else {
+                        // Fallback: use first two touch positions
+                        const startCenter = getTouchCenter(touchStartPositions.slice(0, 2));
+                        startCenterX = startCenter.x;
+                        startCenterY = startCenter.y;
+                    }
+                    
+                    const dx = center.x - startCenterX;
+                    const dy = center.y - startCenterY;
                     
                     if (touchStartPositions.length >= 3) {
                         const initial = touchStartPositions[touchStartPositions.length - 1];
@@ -2968,7 +2965,7 @@
                 
                 touchHasDragged = true;
                 render();
-            } else if (touches.length === 1 && isDraggingGroup && touchStartCard) {
+            } else if (touches.length === 1 && isDraggingGroup && touchStartCard && draggedGroup) {
                 // Single-finger dragging a group
                 const touch = touches[0];
                 const rect = canvas.getBoundingClientRect();
@@ -2997,8 +2994,68 @@
                 
                 touchHasDragged = true;
                 render();
+            } else if (touches.length === 1 && !isDraggingGroup && !isPinching) {
+                // Check if we should start dragging a group (if moved enough from initial touch)
+                const touch = touches[0];
+                const startTouch = touchStartPositions[0];
+                
+                if (startTouch && touchStartCard) {
+                    const dx = touch.clientX - startTouch.x;
+                    const dy = touch.clientY - startTouch.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // If moved more than 5px, start dragging
+                    if (distance > 5) {
+                        const groups = getCardinalConnectivityGroups();
+                        for (const group of groups) {
+                            if (group.has(touchStartCard.id)) {
+                                isDraggingGroup = true;
+                                draggedGroup = group;
+                                
+                                const rect = canvas.getBoundingClientRect();
+                                const touchX = touch.clientX - rect.left;
+                                const touchY = touch.clientY - rect.top;
+                                
+                                const originX = canvas.width / (2 * state.view.zoom);
+                                const originY = canvas.height / (2 * state.view.zoom);
+                                
+                                // Use the stored dragStartPos from touchstart (initial card position)
+                                // Store original card positions BEFORE starting drag
+                                groupStartPositions.clear();
+                                for (const cardId of group) {
+                                    const groupCard = getCardById(cardId);
+                                    if (groupCard && groupCard.x !== null) {
+                                        groupStartPositions.set(cardId, {
+                                            x: groupCard.x,
+                                            y: groupCard.y
+                                        });
+                                    }
+                                }
+                                
+                                // Now process the drag based on current position
+                                const worldX = (touchX - state.view.offsetX) / state.view.zoom - originX;
+                                const worldY = (touchY - state.view.offsetY) / state.view.zoom - originY;
+                                
+                                const deltaX = worldX - dragStartPos.x;
+                                const deltaY = worldY - dragStartPos.y;
+                                
+                                for (const cardId of draggedGroup) {
+                                    const card = getCardById(cardId);
+                                    const startPos = groupStartPositions.get(cardId);
+                                    if (card && startPos) {
+                                        card.x = startPos.x + deltaX / CELL_SIZE;
+                                        card.y = startPos.y + deltaY / CELL_SIZE;
+                                    }
+                                }
+                                
+                                touchHasDragged = true;
+                                render();
+                                break;
+                            }
+                        }
+                    }
+                }
             }
-            // Single-finger panning removed - only two-finger panning allowed
         });
 
         canvas.addEventListener('touchend', (e) => {
