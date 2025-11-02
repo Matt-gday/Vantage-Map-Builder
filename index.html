@@ -4634,23 +4634,155 @@
                     isPinching = false;
                     isTouchPanning = false;
                     touchStartPositions = [];
-                } else if (!touchHasDragged && touchStartCard) {
-                    // Single tap on card - check for double-tap
-                    const now = Date.now();
-                    const timeSinceLastTouch = now - lastTouchTime;
+                } else if (!touchHasDragged && touchStartPositions.length > 0) {
+                    // Single tap detected - check for icon clicks first
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.changedTouches[0];
+                    const touchX = touch.clientX - rect.left;
+                    const touchY = touch.clientY - rect.top;
                     
-                    if (timeSinceLastTouch < 300 && touchStartCard.id === lastTouchedCardId) {
-                        // Double-tap detected - select card
-                        state.currentCardId = touchStartCard.id;
-                        saveToLocalStorage();
-                        render();
-                        showToast(`Set ${touchStartCard.num} as current card`, 'success');
-                        lastTouchedCardId = null; // Reset to prevent triple-tap
-                    } else {
-                        lastTouchedCardId = touchStartCard.id;
+                    // Convert to world coordinates
+                    const originX = canvas.width / (2 * state.view.zoom);
+                    const originY = canvas.height / (2 * state.view.zoom);
+                    
+                    const worldX = (touchX - state.view.offsetX) / state.view.zoom - originX;
+                    const worldY = (touchY - state.view.offsetY) / state.view.zoom - originY;
+                    
+                    // Check for icon clicks
+                    const activeLayer = state.view.activeLayer;
+                    const allConnections = [...state.links, ...calculateImpliedConnections()];
+                    let iconClicked = false;
+                    
+                    for (const card of state.cards) {
+                        if (card.x === null || card.z !== activeLayer) continue;
+                        
+                        const cardX = card.x * CELL_SIZE;
+                        const cardY = card.y * CELL_SIZE;
+                        
+                        const isPortrait = card.orientation === 'portrait';
+                        const cardW = isPortrait ? CARD_HEIGHT : CARD_WIDTH;
+                        const cardH = isPortrait ? CARD_WIDTH : CARD_HEIGHT;
+                        
+                        // Check for up/down/portal connections
+                        let upConnectionCard = null;
+                        let downConnectionCard = null;
+                        let crossLayerOtherCard = null;
+                        
+                        for (const link of allConnections) {
+                            if (!link.certified) continue;
+                            if (link.from === card.id && link.kind === 'up') {
+                                upConnectionCard = getCardById(link.to);
+                            } else if (link.to === card.id && link.kind === 'down') {
+                                upConnectionCard = getCardById(link.from);
+                            } else if (link.from === card.id && link.kind === 'down') {
+                                downConnectionCard = getCardById(link.to);
+                            } else if (link.to === card.id && link.kind === 'up') {
+                                downConnectionCard = getCardById(link.from);
+                            } else if (link.kind === 'other') {
+                                // Check for cross-layer "other" connections
+                                let otherCard = null;
+                                if (link.from === card.id) {
+                                    otherCard = getCardById(link.to);
+                                } else if (link.to === card.id) {
+                                    otherCard = getCardById(link.from);
+                                }
+                                
+                                if (otherCard && otherCard.z !== null && otherCard.z !== card.z) {
+                                    crossLayerOtherCard = otherCard;
+                                }
+                            }
+                        }
+                        
+                        // Check for down arrow (bottom left)
+                        if (downConnectionCard) {
+                            const circleRadius = 12;
+                            const touchRadius = 18; // Larger touch target for fingers
+                            const circleX = cardX - cardW/2 + circleRadius + 5;
+                            const circleY = cardY + cardH/2 - circleRadius - 5;
+                            const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                            
+                            if (dist <= touchRadius) {
+                                // Clicked down arrow - go to layer below with transition
+                                const newLayer = activeLayer - 1;
+                                transitionToLayer(newLayer);
+                                showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
+                                iconClicked = true;
+                                break;
+                            }
+                        }
+                        
+                        // Check for up arrow (bottom left, next to down)
+                        if (upConnectionCard) {
+                            const circleRadius = 12;
+                            const touchRadius = 18; // Larger touch target for fingers
+                            const circleX = cardX - cardW/2 + circleRadius * 3 + 30;
+                            const circleY = cardY + cardH/2 - circleRadius - 5;
+                            const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                            
+                            if (dist <= touchRadius) {
+                                // Clicked up arrow - go to layer above with transition
+                                const newLayer = activeLayer + 1;
+                                transitionToLayer(newLayer);
+                                showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
+                                iconClicked = true;
+                                break;
+                            }
+                        }
+                        
+                        // Check for portal icon (bottom right)
+                        if (crossLayerOtherCard) {
+                            const circleRadius = 12;
+                            const touchRadius = 18; // Larger touch target for fingers
+                            const circleX = cardX + cardW/2 - circleRadius - 5;
+                            const circleY = cardY + cardH/2 - circleRadius - 5;
+                            const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
+                            
+                            if (dist <= touchRadius) {
+                                // Clicked portal - navigate to connected card on different layer
+                                centerOnCard(crossLayerOtherCard, 0.8, false, true);
+                                showToast(`Portal to ${crossLayerOtherCard.num} on ${getLayerName(crossLayerOtherCard.z)}`, 'success');
+                                iconClicked = true;
+                                break;
+                            }
+                        }
+                        
+                        // Check for edit pencil icon (top-right corner, text view only)
+                        if (!state.view.photoViewMode || !card.photo) {
+                            const pencilRadius = 12;
+                            const touchRadius = 18; // Larger touch target for fingers
+                            const pencilPadding = 5;
+                            const pencilX = cardX + cardW/2 - pencilPadding - pencilRadius;
+                            const pencilY = cardY - cardH/2 + pencilPadding + pencilRadius;
+                            const dist = Math.sqrt((worldX - pencilX) ** 2 + (worldY - pencilY) ** 2);
+                            
+                            if (dist <= touchRadius) {
+                                // Clicked edit pencil - open edit modal
+                                openEditModal(card);
+                                iconClicked = true;
+                                break;
+                            }
+                        }
                     }
                     
-                    lastTouchTime = now;
+                    // If no icon was clicked, handle as card tap (for double-tap detection)
+                    if (!iconClicked && touchStartCard) {
+                        const now = Date.now();
+                        const timeSinceLastTouch = now - lastTouchTime;
+                        
+                        if (timeSinceLastTouch < 300 && touchStartCard.id === lastTouchedCardId) {
+                            // Double-tap detected - select card
+                            state.currentCardId = touchStartCard.id;
+                            saveToLocalStorage();
+                            render();
+                            showToast(`Set ${touchStartCard.num} as current card`, 'success');
+                            lastTouchedCardId = null; // Reset to prevent triple-tap
+                        } else {
+                            lastTouchedCardId = touchStartCard.id;
+                        }
+                        
+                        lastTouchTime = now;
+                    }
+                    
                     touchStartCard = null;
                 }
                 
