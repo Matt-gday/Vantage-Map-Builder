@@ -827,23 +827,6 @@
                 margin-bottom: 6px;
             }
 
-            /* Stack keypad and orientation vertically on mobile */
-            .keypad-orientation-container {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .orientation-wrapper {
-                width: 100%;
-                height: auto; /* Remove fixed height on mobile */
-            }
-
-            .orientation-btn {
-                width: 100%;
-                flex: 0 0 auto; /* Don't stretch on mobile */
-                min-height: 50px;
-            }
-
             .numeric-keypad {
                 max-width: 100%;
                 gap: 4px;
@@ -861,6 +844,22 @@
         }
 
         @media (max-width: 480px) {
+            /* Stack keypad and orientation vertically on very small screens */
+            .keypad-orientation-container {
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .orientation-wrapper {
+                width: 100%;
+                height: auto; /* Remove fixed height on mobile */
+            }
+
+            .orientation-btn {
+                width: 100%;
+                flex: 0 0 auto; /* Don't stretch on mobile */
+                min-height: 50px;
+            }
             .toolbar-btn {
                 padding: 6px 8px;
                 font-size: 11px;
