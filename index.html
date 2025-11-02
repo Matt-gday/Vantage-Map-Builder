@@ -53,6 +53,21 @@
         .toolbar-add-row {
             display: none; /* Hidden on desktop */
             align-items: center;
+            gap: 8px;
+        }
+        
+        #add-btn-mobile {
+            flex: 1 1 auto;
+        }
+        
+        #new-game-btn {
+            flex: 0 0 auto;
+            white-space: nowrap;
+        }
+        
+        #new-game-btn-desktop {
+            white-space: nowrap;
+            margin-left: 8px;
         }
         
         .toolbar-group {
@@ -286,6 +301,63 @@
             align-items: stretch; /* Make both children same height */
             margin-top: 8px; /* Move margin to container for alignment */
         }
+        
+        /* Normal mode: keypad + orientation buttons stacked vertically */
+        .keypad-orientation-container:not(.edit-mode) .orientation-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        /* Edit mode: photo full width, orientation buttons horizontal row below */
+        .keypad-orientation-container.edit-mode {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .keypad-orientation-container.edit-mode .keypad-wrapper {
+            display: none;
+        }
+        
+        .keypad-orientation-container.edit-mode .orientation-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            gap: 8px;
+            grid-template-rows: auto auto;
+        }
+        
+        .keypad-orientation-container.edit-mode .photo-btn {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            grid-column: 1 / -1; /* Span both columns */
+            grid-row: 1; /* First row */
+        }
+        
+        .keypad-orientation-container.edit-mode .photo-thumbnail {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .keypad-orientation-container.edit-mode .orientation-btn {
+            width: 100%;
+            min-height: 50px;
+            grid-row: 2; /* Second row */
+        }
+        
+        .keypad-orientation-container.edit-mode .orientation-btn:first-of-type {
+            grid-column: 1;
+        }
+        
+        .keypad-orientation-container.edit-mode .orientation-btn:last-of-type {
+            grid-column: 2;
+        }
 
         .keypad-wrapper {
             flex: 1;
@@ -384,6 +456,15 @@
             touch-action: manipulation;
             min-height: 36px;
             display: flex;
+        }
+        
+        .keypad-btn[disabled] {
+            opacity: 0.4 !important;
+            cursor: not-allowed !important;
+            background: #E2E8F0 !important;
+            color: #94A3B8 !important;
+            pointer-events: none !important;
+            border-color: #CBD5E1 !important;
             align-items: center;
             justify-content: center;
         }
@@ -395,7 +476,7 @@
             transform: scale(0.95);
         }
 
-        .keypad-btn:hover:not(:active) {
+        .keypad-btn:hover:not(:active):not(:disabled):not([disabled]) {
             border-color: #0EA5E9;
             background: #F0F9FF;
         }
@@ -718,6 +799,10 @@
                 display: none; /* Hide desktop Add button on iPad */
             }
             
+            #new-game-btn-desktop {
+                display: none; /* Hide desktop New Game button on iPad */
+            }
+            
             .toolbar-right-group {
                 margin-left: 0; /* Remove auto margin */
                 flex: 0 1 auto; /* Allow shrinking */
@@ -768,6 +853,10 @@
             
             #add-btn-desktop {
                 display: none; /* Hide desktop Add button on mobile */
+            }
+            
+            #new-game-btn-desktop {
+                display: none; /* Hide desktop New Game button on mobile */
             }
             
             .toolbar-add-row {
@@ -917,6 +1006,8 @@
             <!-- Add Button (inline on desktop, moves to bottom row on iPad/mobile) -->
             <button class="toolbar-btn primary" id="add-btn-desktop">Add +</button>
             
+            <button class="toolbar-btn" id="new-game-btn-desktop">New Game</button>
+            
             <!-- Search & File Operations (right-aligned) -->
             <div class="toolbar-group toolbar-right-group">
                 <div class="search-wrapper">
@@ -932,6 +1023,7 @@
         <!-- Bottom Row: Add Button (iPad/mobile only) -->
         <div class="toolbar-add-row">
             <button class="toolbar-btn primary" id="add-btn-mobile">Add +</button>
+            <button class="toolbar-btn" id="new-game-btn">New Game</button>
         </div>
     </div>
 
@@ -949,7 +1041,7 @@
                 <div class="form-group compact">
                     <label class="form-label" for="card-number">Location ID</label>
                     <input type="search" class="form-input" id="card-number" maxlength="3" placeholder="007" inputmode="numeric" readonly>
-                    <div class="keypad-orientation-container">
+                    <div class="keypad-orientation-container" id="keypad-orientation-container">
                         <div class="keypad-wrapper">
                             <div class="numeric-keypad">
                                 <div class="keypad-row">
@@ -1044,6 +1136,36 @@
             <div class="modal-footer">
                 <button class="modal-btn cancel" id="reset-cancel">Cancel</button>
                 <button class="modal-btn" id="reset-confirm" style="background: #EF4444; color: white;">Delete Everything</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Game Modal -->
+    <div class="modal-backdrop" id="new-game-modal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">New Game</div>
+            <p style="margin: 20px 0; line-height: 1.6; color: #475569;">
+                Would you like to start a new map or continue with the current map?
+            </p>
+            <div class="modal-footer" style="flex-direction: column; gap: 12px;">
+                <button class="modal-btn primary" id="new-game-start" style="width: 100%;">Start a New Map</button>
+                <button class="modal-btn" id="new-game-continue" style="width: 100%; background: #10B981; color: white;">Continue with Current Map</button>
+                <button class="modal-btn cancel" id="new-game-cancel" style="width: 100%;">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Save Current Map Modal (before reset) -->
+    <div class="modal-backdrop" id="save-before-reset-modal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">Save Current Map?</div>
+            <p style="margin: 20px 0; line-height: 1.6; color: #475569;">
+                Would you like to export and save your current map before starting a new one?
+            </p>
+            <div class="modal-footer" style="flex-direction: column; gap: 12px;">
+                <button class="modal-btn primary" id="save-and-reset-yes" style="width: 100%;">Yes, Save Map</button>
+                <button class="modal-btn" id="save-and-reset-no" style="width: 100%; background: #EF4444; color: white;">No, Don't Save</button>
+                <button class="modal-btn cancel" id="save-and-reset-cancel" style="width: 100%;">Cancel</button>
             </div>
         </div>
     </div>
@@ -1268,6 +1390,118 @@
         }
 
         // ===== AUTO LAYOUT SOLVER =====
+        // Position an isolated card (new game mode) near existing cards but not adjacent
+        function positionIsolatedCard(card) {
+            console.log('Positioning isolated card:', card.num);
+            
+            // If no other cards, place at origin
+            if (state.cards.length === 1) {
+                card.x = 0;
+                card.y = 0;
+                card.z = 0;
+                card.positioned = true;
+                card.manuallyPositioned = true; // Mark as manually positioned so user can drag it
+                console.log('Placed first card at origin');
+                return;
+            }
+            
+            // Find bounding box of all positioned cards
+            const positionedCards = state.cards.filter(c => c.x !== null && c.y !== null && c.z !== null && c.id !== card.id);
+            if (positionedCards.length === 0) {
+                // No positioned cards, place at origin
+                card.x = 0;
+                card.y = 0;
+                card.z = 0;
+                card.positioned = true;
+                card.manuallyPositioned = true;
+                console.log('No other positioned cards, placed at origin');
+                return;
+            }
+            
+            const minX = Math.min(...positionedCards.map(c => c.x));
+            const maxX = Math.max(...positionedCards.map(c => c.x));
+            const minY = Math.min(...positionedCards.map(c => c.y));
+            const maxY = Math.max(...positionedCards.map(c => c.y));
+            
+            // Try to place the card near the existing cards but not orthogonally adjacent
+            // Start with positions that are 2 units away from the edge
+            const candidatePositions = [
+                { x: maxX + 2, y: Math.floor((minY + maxY) / 2), z: 0 }, // Right side
+                { x: minX - 2, y: Math.floor((minY + maxY) / 2), z: 0 }, // Left side
+                { x: Math.floor((minX + maxX) / 2), y: maxY + 2, z: 0 }, // Bottom
+                { x: Math.floor((minX + maxX) / 2), y: minY - 2, z: 0 }, // Top
+                { x: maxX + 2, y: maxY + 2, z: 0 }, // Bottom-right corner
+                { x: minX - 2, y: minY - 2, z: 0 }, // Top-left corner
+                { x: maxX + 2, y: minY - 2, z: 0 }, // Top-right corner
+                { x: minX - 2, y: maxY + 2, z: 0 }, // Bottom-left corner
+            ];
+            
+            // Find first position that doesn't collide with any existing card
+            for (const pos of candidatePositions) {
+                const collision = positionedCards.some(c => 
+                    c.x === pos.x && c.y === pos.y && c.z === pos.z
+                );
+                
+                if (!collision) {
+                    card.x = pos.x;
+                    card.y = pos.y;
+                    card.z = pos.z;
+                    card.positioned = true;
+                    card.manuallyPositioned = true; // Mark as manually positioned so user can drag it
+                    console.log('Placed isolated card at:', pos.x, pos.y, pos.z);
+                    return;
+                }
+            }
+            
+            // If all candidate positions are taken, spiral outward
+            let distance = 3;
+            while (distance < 20) {
+                for (let dx = -distance; dx <= distance; dx++) {
+                    for (let dy = -distance; dy <= distance; dy++) {
+                        // Only check perimeter of current distance
+                        if (Math.abs(dx) !== distance && Math.abs(dy) !== distance) continue;
+                        
+                        const testPos = {
+                            x: Math.floor((minX + maxX) / 2) + dx,
+                            y: Math.floor((minY + maxY) / 2) + dy,
+                            z: 0
+                        };
+                        
+                        const collision = positionedCards.some(c => 
+                            c.x === testPos.x && c.y === testPos.y && c.z === testPos.z
+                        );
+                        
+                        // Also check it's not orthogonally adjacent to any card
+                        const isAdjacent = positionedCards.some(c =>
+                            c.z === testPos.z && (
+                                (c.x === testPos.x && Math.abs(c.y - testPos.y) === 1) ||
+                                (c.y === testPos.y && Math.abs(c.x - testPos.x) === 1)
+                            )
+                        );
+                        
+                        if (!collision && !isAdjacent) {
+                            card.x = testPos.x;
+                            card.y = testPos.y;
+                            card.z = testPos.z;
+                            card.positioned = true;
+                            card.manuallyPositioned = true;
+                            console.log('Placed isolated card at:', testPos.x, testPos.y, testPos.z, 'after spiral search');
+                            return;
+                        }
+                    }
+                }
+                distance++;
+            }
+            
+            // Fallback - just place it somewhere
+            card.x = maxX + 3;
+            card.y = 0;
+            card.z = 0;
+            card.positioned = true;
+            card.manuallyPositioned = true;
+            console.log('Placed isolated card at fallback position');
+        }
+
         function solveLayout() {
             console.log('solveLayout() called');
             // Clear positions only for cards that haven't been manually positioned
@@ -1730,11 +1964,15 @@
         const orientationButtons = document.querySelectorAll('.orientation-btn');
         const saveButton = document.getElementById('modal-save');
         const cancelButton = document.getElementById('modal-cancel');
+        const keypadOrientationContainer = document.getElementById('keypad-orientation-container');
 
         let selectedDirection = null;
         let selectedOrientation = 'landscape'; // Default
         let currentPhotoData = null; // Stores base64 photo data temporarily
         let photoSource = null; // Tracks if photo is from 'camera' or 'gallery'
+        let isNewGameMode = false; // Track if we're in "continue with current map" mode
+        let isEditMode = false; // Track if we're editing an existing card
+        let editingCardId = null; // ID of card being edited
         
         // Photo modal elements
         const photoBtn = document.getElementById('photo-btn');
@@ -1761,12 +1999,13 @@
 
         function openModal() {
             modal.classList.add('active');
+            keypadOrientationContainer.classList.remove('edit-mode');
             cardNumberInput.value = '';
             cardNoteInput.value = '';
             selectedDirection = null;
             selectedOrientation = 'landscape';
             
-            // Disable direction buttons if this is the first card
+            // Disable direction buttons if this is the first card OR in new game mode
             const isFirstCard = state.cards.length === 0;
             const currentCard = getCurrentCard();
             const directionLabel = document.getElementById('direction-label');
@@ -1775,15 +2014,18 @@
             // Update subheader
             if (isFirstCard) {
                 subheader.textContent = 'This will be your first card (placed at origin 0,0,0)';
+            } else if (isNewGameMode) {
+                subheader.textContent = 'New game location (direction optional)';
             } else {
                 subheader.textContent = `Adding from current card: ${currentCard.num}`;
             }
             
-            console.log('Opening modal - isFirstCard:', isFirstCard, 'Cards count:', state.cards.length);
+            console.log('Opening modal - isFirstCard:', isFirstCard, 'isNewGameMode:', isNewGameMode, 'Cards count:', state.cards.length);
             
             directionButtons.forEach(btn => {
                 btn.classList.remove('active');
-                btn.disabled = isFirstCard;
+                // Disable direction buttons for first card OR new game mode (both start without connections)
+                btn.disabled = isFirstCard || isNewGameMode;
                 console.log('Button', btn.dataset.direction, 'disabled:', btn.disabled);
             });
             
@@ -1796,11 +2038,33 @@
             if (isFirstCard) {
                 directionLabel.textContent = 'Direction (not needed for first card)';
                 directionLabel.classList.remove('required');
+            } else if (isNewGameMode) {
+                directionLabel.textContent = 'Direction (optional for new game)';
+                directionLabel.classList.remove('required');
             } else {
                 directionLabel.textContent = 'Direction';
                 directionLabel.classList.add('required');
             }
 
+            // Enable card number input (normal add mode)
+            cardNumberInput.disabled = false;
+            cardNumberInput.style.opacity = '1';
+            cardNumberInput.style.cursor = 'text';
+            
+            // Show direction label and buttons
+            if (directionLabel) {
+                const directionFormGroup = directionLabel.closest('.form-group');
+                if (directionFormGroup) {
+                    directionFormGroup.style.display = '';
+                }
+            }
+            
+            // Re-enable keypad buttons
+            const keypadButtons = document.querySelectorAll('.keypad-btn');
+            keypadButtons.forEach(btn => {
+                btn.disabled = false;
+            });
+            
             updateSaveButton();
             // Don't auto-focus on mobile to prevent keyboard popup
             
@@ -1809,11 +2073,68 @@
             photoSource = null;
             updatePhotoButton();
         }
+        
+        function openEditModal(card) {
+            isEditMode = true;
+            editingCardId = card.id;
+            modal.classList.add('active');
+            keypadOrientationContainer.classList.add('edit-mode');
+            
+            // Pre-populate fields
+            cardNumberInput.value = card.num;
+            cardNoteInput.value = card.note || '';
+            selectedOrientation = card.orientation || 'landscape';
+            currentPhotoData = card.photo || null;
+            selectedDirection = null;
+            
+            // Update UI
+            const directionLabel = document.getElementById('direction-label');
+            const subheader = document.getElementById('modal-subheader');
+            
+            subheader.textContent = `Editing card ${card.num}`;
+            
+            // Disable card number input (can't change it)
+            cardNumberInput.disabled = true;
+            cardNumberInput.style.opacity = '0.5';
+            cardNumberInput.style.cursor = 'not-allowed';
+            
+            // Disable all direction buttons (can't change connections)
+            directionButtons.forEach(btn => {
+                btn.classList.remove('active');
+                btn.disabled = true;
+            });
+            
+            // Hide direction label and buttons
+            if (directionLabel) {
+                const directionFormGroup = directionLabel.closest('.form-group');
+                if (directionFormGroup) {
+                    directionFormGroup.style.display = 'none';
+                }
+            }
+            
+            // Disable and grey out numeric keypad buttons
+            const keypadButtons = document.querySelectorAll('.keypad-btn');
+            keypadButtons.forEach(btn => {
+                btn.disabled = true;
+            });
+            
+            // Set orientation buttons
+            orientationButtons.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.orientation === selectedOrientation);
+            });
+            
+            updateSaveButton();
+            updatePhotoButton();
+        }
 
         function closeModal() {
             modal.classList.remove('active');
+            keypadOrientationContainer.classList.remove('edit-mode');
             currentPhotoData = null; // Clear temporary photo data
             photoSource = null; // Clear photo source
+            isNewGameMode = false; // Reset new game mode
+            isEditMode = false; // Reset edit mode
+            editingCardId = null; // Clear editing card ID
             updatePhotoButton(); // Reset photo button
         }
         
@@ -1824,8 +2145,8 @@
             const currentCard = getCurrentCard();
             const cardNum = cardNumberInput.value.trim();
             
-            // Check if editing existing card with photo
-            const existingCard = cardNum ? getCardByNumber(padCardNumber(cardNum)) : null;
+            // Only check for existing card photo if in edit mode
+            const existingCard = (isEditMode && cardNum) ? getCardByNumber(padCardNumber(cardNum)) : null;
             const photoData = currentPhotoData || (existingCard && existingCard.photo);
             
             if (photoData) {
@@ -2025,6 +2346,13 @@
         const keypadButtons = document.querySelectorAll('.keypad-btn');
         keypadButtons.forEach(btn => {
             btn.addEventListener('click', (e) => {
+                // Don't execute if button is disabled
+                if (btn.disabled) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
+                
                 e.preventDefault();
                 const key = btn.dataset.key;
                 
@@ -2088,8 +2416,14 @@
         });
 
         function updateSaveButton() {
+            // In edit mode, only require that card number exists (it's always there)
+            if (isEditMode) {
+                saveButton.disabled = false;
+                return;
+            }
+            
             const hasNumber = cardNumberInput.value.length === 3;
-            const hasDirection = selectedDirection !== null || state.cards.length === 0;
+            const hasDirection = selectedDirection !== null || state.cards.length === 0 || isNewGameMode;
             const shouldEnable = hasNumber && hasDirection;
             saveButton.disabled = !shouldEnable;
             
@@ -2098,7 +2432,9 @@
                 hasDirection,
                 shouldEnable,
                 disabled: saveButton.disabled,
-                cardsLength: state.cards.length
+                cardsLength: state.cards.length,
+                isNewGameMode,
+                isEditMode
             });
         }
 
@@ -2109,8 +2445,35 @@
             console.log('Card number input:', cardNumberInput.value);
             console.log('Selected direction:', selectedDirection);
             console.log('Current cards:', state.cards.length);
+            console.log('Edit mode:', isEditMode);
             
             try {
+                // EDIT MODE - Update existing card
+                if (isEditMode && editingCardId) {
+                    const note = cardNoteInput.value.trim();
+                    const card = getCardById(editingCardId);
+                    
+                    if (!card) {
+                        showToast('Error: Card not found', 'error');
+                        closeModal();
+                        return;
+                    }
+                    
+                    // Update card properties
+                    card.note = note;
+                    card.orientation = selectedOrientation;
+                    card.photo = currentPhotoData || null;
+                    
+                    console.log('Updated card:', card);
+                    showToast(`Updated card ${card.num}`, 'success');
+                    
+                    saveToLocalStorage();
+                    closeModal();
+                    render();
+                    return;
+                }
+                
+                // ADD MODE - Continue with normal add logic
                 const cardNum = padCardNumber(cardNumberInput.value);
                 const note = cardNoteInput.value.trim();
                 const currentCard = getCurrentCard();
@@ -2127,19 +2490,38 @@
                 let clearedCards = []; // Track cards whose positions were cleared for group merging
                 let allCardPositionsSnapshot = null; // Snapshot of all card positions before any changes
                 
+                // Handle new game mode
+                if (isNewGameMode && !selectedDirection) {
+                    if (card) {
+                        // Card already exists - just highlight it and center on it
+                        console.log('New game mode: Card exists, highlighting it');
+                        state.currentCardId = card.id;
+                        isNewGameMode = false; // Reset new game mode
+                        closeModal();
+                        centerOnCard(card);
+                        showToast(`Found existing card ${cardNum}`, 'success');
+                        return;
+                    } else {
+                        // Card doesn't exist - will be added as isolated location
+                        console.log('New game mode: Adding new isolated location');
+                    }
+                }
+                
                 // If card exists, check if we're trying to create a duplicate or link to it
                 if (card) {
                     // Check if we're trying to link to this existing card (which requires a currentCard and direction)
                     const isLinkingToExisting = currentCard && selectedDirection && currentCard.id !== card.id;
                     
-                    if (!isLinkingToExisting) {
+                    if (!isLinkingToExisting && !isNewGameMode) {
                         // We're trying to create a duplicate card - prevent this
                         console.error('Card number already exists:', cardNum);
                         showToast(`Error: Card ${cardNum} already exists. To link to it, select a direction from your current card.`, 'error');
                         return;
                     }
                     // Otherwise, we're linking to an existing card (which is allowed)
-                    console.log('Linking to existing card:', card.num, 'manuallyPositioned:', card.manuallyPositioned);
+                    if (!isNewGameMode) {
+                        console.log('Linking to existing card:', card.num, 'manuallyPositioned:', card.manuallyPositioned);
+                    }
                 } else {
                     // Card doesn't exist, create new one
                     isNewCard = true;
@@ -2382,6 +2764,12 @@
                 console.log('Running layout solver...');
                 solveLayout();
                 
+                // If this is a new game mode card without a connection, position it as isolated
+                if (isNewGameMode && isNewCard && !selectedDirection && card.x === null) {
+                    console.log('New game mode: Positioning isolated card');
+                    positionIsolatedCard(card);
+                }
+                
                 console.log('After solver - Target card position:', card.x, card.y, card.z);
                 if (currentCard) {
                     console.log('After solver - Current card position:', currentCard.x, currentCard.y, currentCard.z);
@@ -2589,7 +2977,7 @@
 
         const CELL_SIZE = 220; // Space between card centers
         const CARD_WIDTH = 200;
-        const CARD_HEIGHT = 120;
+        const CARD_HEIGHT = 150; // 4:3 aspect ratio (200:150)
 
         function resizeCanvas() {
             canvas.width = canvas.offsetWidth;
@@ -2742,36 +3130,6 @@
                 }
             }
 
-            // Draw up arrow at top left if there's an up connection
-            if (upConnectionCard) {
-                const circleRadius = 12;
-                const circleX = x - cardW/2 + circleRadius + 5;
-                const circleY = y - cardH/2 + circleRadius + 5;
-                
-                // Circle background
-                ctx.fillStyle = '#8B5CF6'; // Purple for up
-                ctx.beginPath();
-                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Arrow
-                ctx.fillStyle = 'white';
-                const arrowSize = 5;
-                ctx.beginPath();
-                ctx.moveTo(circleX, circleY - arrowSize);
-                ctx.lineTo(circleX - arrowSize, circleY + arrowSize/2);
-                ctx.lineTo(circleX + arrowSize, circleY + arrowSize/2);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Card number next to arrow
-                ctx.fillStyle = '#8B5CF6';
-                ctx.font = '9px Inter, sans-serif';
-                ctx.textAlign = 'left';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(upConnectionCard.num, circleX + circleRadius + 3, circleY);
-            }
-
             // Draw down arrow at bottom left if there's a down connection
             if (downConnectionCard) {
                 const circleRadius = 12;
@@ -2800,6 +3158,36 @@
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(downConnectionCard.num, circleX + circleRadius + 3, circleY);
+            }
+            
+            // Draw up arrow at bottom left (next to down arrow) if there's an up connection
+            if (upConnectionCard) {
+                const circleRadius = 12;
+                const circleX = x - cardW/2 + circleRadius * 3 + 30;
+                const circleY = y + cardH/2 - circleRadius - 5;
+                
+                // Circle background
+                ctx.fillStyle = '#8B5CF6'; // Purple for up
+                ctx.beginPath();
+                ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Arrow
+                ctx.fillStyle = 'white';
+                const arrowSize = 5;
+                ctx.beginPath();
+                ctx.moveTo(circleX, circleY - arrowSize);
+                ctx.lineTo(circleX - arrowSize, circleY + arrowSize/2);
+                ctx.lineTo(circleX + arrowSize, circleY + arrowSize/2);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Card number next to arrow
+                ctx.fillStyle = '#8B5CF6';
+                ctx.font = '9px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(upConnectionCard.num, circleX + circleRadius + 3, circleY);
             }
             
             // Draw portal/cross-layer icon at bottom right if there's a cross-layer "other" connection
@@ -2859,8 +3247,24 @@
                     roundRect(ctx, x - cardW/2, y - cardH/2, cardW, cardH, 16);
                     ctx.clip();
                     
-                    // Draw the image to fill the card
-                    ctx.drawImage(img, x - cardW/2, y - cardH/2, cardW, cardH);
+                    // Draw the image with aspect ratio preservation (cover behavior)
+                    const imgAspect = img.width / img.height;
+                    const cardAspect = cardW / cardH;
+                    
+                    let sourceX = 0, sourceY = 0, sourceW = img.width, sourceH = img.height;
+                    
+                    if (imgAspect > cardAspect) {
+                        // Image is wider - crop sides
+                        sourceW = img.height * cardAspect;
+                        sourceX = (img.width - sourceW) / 2;
+                    } else {
+                        // Image is taller - crop top/bottom
+                        sourceH = img.width / cardAspect;
+                        sourceY = (img.height - sourceH) / 2;
+                    }
+                    
+                    ctx.drawImage(img, sourceX, sourceY, sourceW, sourceH, 
+                                  x - cardW/2, y - cardH/2, cardW, cardH);
                     
                     ctx.restore();
                 } else {
@@ -2904,6 +3308,47 @@
                         ctx.fillText(line, x, startY + (i * lineHeight));
                     });
                 }
+                
+                // Draw edit pencil icon in top-right corner (text view only)
+                const pencilRadius = 12;
+                const pencilPadding = 5;
+                const pencilX = x + cardW/2 - pencilPadding - pencilRadius;
+                const pencilY = y - cardH/2 + pencilPadding + pencilRadius;
+                
+                // Pencil background circle (grey)
+                ctx.fillStyle = '#CBD5E1';
+                ctx.beginPath();
+                ctx.arc(pencilX, pencilY, pencilRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw pencil icon (black)
+                ctx.fillStyle = '#1E293B';
+                ctx.strokeStyle = '#1E293B';
+                ctx.lineWidth = 1.2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // Pencil body (rotated rectangle)
+                ctx.save();
+                ctx.translate(pencilX, pencilY);
+                ctx.rotate(-Math.PI / 4);
+                
+                // Main pencil body (made longer)
+                ctx.fillRect(-1.5, -6, 3, 10);
+                
+                // Pencil tip (triangle)
+                ctx.beginPath();
+                ctx.moveTo(-1.5, 4);
+                ctx.lineTo(0, 6);
+                ctx.lineTo(1.5, 4);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Eraser (small rectangle at top)
+                ctx.fillStyle = '#1E293B';
+                ctx.fillRect(-1.5, -7, 3, 1);
+                
+                ctx.restore();
             }
 
             // Z badge
@@ -2911,8 +3356,8 @@
                 const badge = card.z > 0 ? `z+${card.z}` : `z${card.z}`;
                 ctx.fillStyle = card.z > 0 ? '#8B5CF6' : '#F59E0B';
                 ctx.font = `12px Inter, sans-serif`;
-                ctx.textAlign = 'right';
-                ctx.fillText(badge, x + cardW/2 - 10, y - cardH/2 + 15);
+                ctx.textAlign = 'left';
+                ctx.fillText(badge, x - cardW/2 + 10, y - cardH/2 + 15);
             }
 
             ctx.restore();
@@ -3685,26 +4130,27 @@
                     }
                 }
                 
-                // Check for portal icon (bottom right)
-                if (crossLayerOtherCard) {
-                    const circleRadius = 16;
-                    const circleX = cardX + cardW/2 - circleRadius - 6;
-                    const circleY = cardY + cardH/2 - circleRadius - 6;
+                // Check for down arrow (bottom left)
+                if (downConnectionCard) {
+                    const circleRadius = 12;
+                    const circleX = cardX - cardW/2 + circleRadius + 5;
+                    const circleY = cardY + cardH/2 - circleRadius - 5;
                     const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
                     
                     if (dist <= circleRadius) {
-                        // Clicked portal - navigate to connected card on different layer
-                        centerOnCard(crossLayerOtherCard, 0.8, false, true);
-                        showToast(`Portal to ${crossLayerOtherCard.num} on ${getLayerName(crossLayerOtherCard.z)}`, 'success');
+                        // Clicked down arrow - go to layer below with transition
+                        const newLayer = activeLayer - 1;
+                        transitionToLayer(newLayer);
+                        showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
                         return;
                     }
                 }
                 
-                // Check for up arrow
+                // Check for up arrow (bottom left, next to down)
                 if (upConnectionCard) {
-                    const circleRadius = 16;
-                    const circleX = cardX - cardW/2 + circleRadius + 6;
-                    const circleY = cardY - cardH/2 + circleRadius + 6;
+                    const circleRadius = 12;
+                    const circleX = cardX - cardW/2 + circleRadius * 3 + 30;
+                    const circleY = cardY + cardH/2 - circleRadius - 5;
                     const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
                     
                     if (dist <= circleRadius) {
@@ -3716,18 +4162,32 @@
                     }
                 }
                 
-                // Check for down arrow
-                if (downConnectionCard) {
-                    const circleRadius = 16;
-                    const circleX = cardX - cardW/2 + circleRadius + 6;
-                    const circleY = cardY + cardH/2 - circleRadius - 6;
+                // Check for portal icon (bottom right)
+                if (crossLayerOtherCard) {
+                    const circleRadius = 12;
+                    const circleX = cardX + cardW/2 - circleRadius - 5;
+                    const circleY = cardY + cardH/2 - circleRadius - 5;
                     const dist = Math.sqrt((worldX - circleX) ** 2 + (worldY - circleY) ** 2);
                     
                     if (dist <= circleRadius) {
-                        // Clicked down arrow - go to layer below with transition
-                        const newLayer = activeLayer - 1;
-                        transitionToLayer(newLayer);
-                        showToast(`Moved to ${getLayerName(newLayer)}`, 'success');
+                        // Clicked portal - navigate to connected card on different layer
+                        centerOnCard(crossLayerOtherCard, 0.8, false, true);
+                        showToast(`Portal to ${crossLayerOtherCard.num} on ${getLayerName(crossLayerOtherCard.z)}`, 'success');
+                        return;
+                    }
+                }
+                
+                // Check for edit pencil icon (top-right corner, text view only)
+                if (!state.view.photoViewMode || !card.photo) {
+                    const pencilRadius = 12;
+                    const pencilPadding = 5;
+                    const pencilX = cardX + cardW/2 - pencilPadding - pencilRadius;
+                    const pencilY = cardY - cardH/2 + pencilPadding + pencilRadius;
+                    const dist = Math.sqrt((worldX - pencilX) ** 2 + (worldY - pencilY) ** 2);
+                    
+                    if (dist <= pencilRadius) {
+                        // Clicked edit pencil - open edit modal
+                        openEditModal(card);
                         return;
                     }
                 }
@@ -4737,6 +5197,122 @@
 
             showToast('Map has been reset', 'success');
         });
+
+        // ===== NEW GAME MODAL =====
+        const newGameModal = document.getElementById('new-game-modal');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const newGameBtnDesktop = document.getElementById('new-game-btn-desktop');
+        const newGameStartBtn = document.getElementById('new-game-start');
+        const newGameContinueBtn = document.getElementById('new-game-continue');
+        const newGameCancelBtn = document.getElementById('new-game-cancel');
+        
+        const saveBeforeResetModal = document.getElementById('save-before-reset-modal');
+        const saveAndResetYesBtn = document.getElementById('save-and-reset-yes');
+        const saveAndResetNoBtn = document.getElementById('save-and-reset-no');
+        const saveAndResetCancelBtn = document.getElementById('save-and-reset-cancel');
+
+        // Event listeners for both mobile and desktop New Game buttons
+        newGameBtn.addEventListener('click', () => {
+            newGameModal.classList.add('active');
+        });
+        
+        newGameBtnDesktop.addEventListener('click', () => {
+            newGameModal.classList.add('active');
+        });
+
+        newGameCancelBtn.addEventListener('click', () => {
+            newGameModal.classList.remove('active');
+        });
+
+        newGameModal.addEventListener('click', (e) => {
+            if (e.target === newGameModal) {
+                newGameModal.classList.remove('active');
+            }
+        });
+
+        // Start a New Map option
+        newGameStartBtn.addEventListener('click', () => {
+            newGameModal.classList.remove('active');
+            
+            // If there are cards, ask if they want to save first
+            if (state.cards.length > 0) {
+                saveBeforeResetModal.classList.add('active');
+            } else {
+                // No cards, just reset
+                performReset();
+            }
+        });
+
+        // Continue with Current Map option
+        newGameContinueBtn.addEventListener('click', () => {
+            newGameModal.classList.remove('active');
+            isNewGameMode = true;
+            openModal();
+        });
+
+        // Save before reset modal handlers
+        saveAndResetYesBtn.addEventListener('click', () => {
+            saveBeforeResetModal.classList.remove('active');
+            exportJSON(); // Export the map
+            // Show reset confirmation
+            resetModal.classList.add('active');
+        });
+
+        saveAndResetNoBtn.addEventListener('click', () => {
+            saveBeforeResetModal.classList.remove('active');
+            // Show reset confirmation
+            resetModal.classList.add('active');
+        });
+
+        saveAndResetCancelBtn.addEventListener('click', () => {
+            saveBeforeResetModal.classList.remove('active');
+        });
+
+        saveBeforeResetModal.addEventListener('click', (e) => {
+            if (e.target === saveBeforeResetModal) {
+                saveBeforeResetModal.classList.remove('active');
+            }
+        });
+
+        // Helper function to perform reset (used by both reset button and new game)
+        function performReset() {
+            // Clear all state
+            state.cards = [];
+            state.links = [];
+            state.currentCardId = null;
+            state.meta = {
+                version: 1,
+                created: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+            };
+            state.view = {
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+                activeLayer: 0
+            };
+
+            // Reset ID counters
+            nextCardId = 1;
+            nextLinkId = 1;
+
+            // Clear localStorage
+            localStorage.removeItem('vantage-map');
+            localStorage.removeItem('vantage-map-history');
+
+            // Clear history and save reset state
+            history = [];
+            historyIndex = -1;
+            saveHistory();
+            
+            // Reset layer selector to just surface
+            updateLayerSelector();
+
+            // Refresh view
+            render();
+
+            showToast('Map has been reset', 'success');
+        }
 
         // ===== INITIALIZATION =====
         loadFromLocalStorage();
