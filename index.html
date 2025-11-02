@@ -263,6 +263,7 @@
             font-size: 18px;
             font-weight: 700;
             margin-bottom: 4px;
+            padding: 20px 30px 0 30px;
         }
 
         .modal-subheader {
@@ -330,7 +331,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 0;
             width: 120px;
             min-height: 0; /* Allow flex to control height */
         }
@@ -472,13 +473,109 @@
             border-color: #0EA5E9;
             color: white;
         }
+        
+        /* Photo Button */
+        .photo-btn {
+            flex: 1 1 0;
+            padding: 8px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            width: 120px;
+            position: relative;
+        }
+        
+        .photo-btn:hover {
+            border-color: #0EA5E9;
+            background: #F0F9FF;
+        }
+        
+        .photo-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+        }
+        
+        .photo-icon svg {
+            width: 100%;
+            height: 100%;
+            stroke: #0F172A;
+            fill: none;
+        }
+        
+        .photo-btn.has-photo {
+            padding: 0;
+            overflow: hidden;
+            height: auto;
+            min-height: 80px; /* Ensure enough height to show photo */
+        }
+        
+        .photo-thumbnail {
+            width: 100%;
+            height: 100%;
+            min-height: 80px;
+            object-fit: cover;
+            cursor: pointer;
+            display: block;
+        }
+        
+        .photo-edit-icon {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-size: 12px;
+            cursor: pointer;
+            z-index: 1;
+        }
+        
+        .photo-option-btn {
+            width: 100%;
+            padding: 20px;
+            background: white;
+            border: 2px solid #CBD5E1;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.2s;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .photo-option-btn:hover {
+            border-color: #0EA5E9;
+            background: #F0F9FF;
+        }
+        
+        .photo-option-btn:last-child {
+            margin-bottom: 0;
+        }
 
         .modal-footer {
             display: flex;
             gap: 8px;
             justify-content: flex-end;
             margin-top: 12px;
-            padding-top: 12px;
+            padding: 12px 30px 20px 30px;
             border-top: 1px solid #E2E8F0;
             flex-shrink: 0;
         }
@@ -808,6 +905,12 @@
                     <!-- Dynamically populated based on card z-levels -->
                 </select>
                 <button class="toolbar-btn" id="zoom-fit-btn">Full Map</button>
+                <button class="toolbar-btn" id="view-toggle-btn" title="Toggle Photo/Text View">
+                    <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; vertical-align: middle;">
+                        <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <text x="12" y="17" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="currentColor">T</text>
+                    </svg>
+                </button>
             </div>
             
             <div class="toolbar-divider"></div>
@@ -873,13 +976,20 @@
                             </div>
                         </div>
                         <div class="orientation-wrapper">
+                            <button type="button" class="photo-btn" id="photo-btn">
+                                <span class="photo-icon">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                                        <polyline points="21 15 16 10 5 21"/>
+                                    </svg>
+                                </span>
+                            </button>
                             <button type="button" class="orientation-btn active" data-orientation="landscape">
                                 <div style="width: 24px; height: 16px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                                <span>Landscape</span>
                             </button>
                             <button type="button" class="orientation-btn" data-orientation="portrait">
                                 <div style="width: 16px; height: 24px; border: 2px solid currentColor; border-radius: 4px;"></div>
-                                <span>Portrait</span>
                             </button>
                         </div>
                     </div>
@@ -941,6 +1051,67 @@
 
     <!-- Hidden file input for import -->
     <input type="file" id="import-file-input" accept=".json">
+    
+    <!-- Photo Capture/Upload Modal -->
+    <div class="modal-backdrop" id="photo-modal">
+        <div class="modal-dialog" style="max-width: 500px; background: white; border-radius: 12px; padding: 0; margin: 20px;">
+            <div class="modal-header">Add Photo</div>
+            <div class="modal-content" style="padding: 24px 30px;">
+                <button class="photo-option-btn" id="camera-btn">
+                    Take Photo
+                </button>
+                <button class="photo-option-btn" id="gallery-btn">
+                    Choose from Gallery
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" id="photo-modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Photo Preview Modal (after capture/upload) -->
+    <div class="modal-backdrop" id="photo-preview-modal">
+        <div class="modal-dialog" style="max-width: 600px; background: white; border-radius: 12px; padding: 0; margin: 20px;">
+            <div class="modal-header">Photo Preview</div>
+            <div class="modal-content" style="padding: 24px 30px;">
+                <div id="photo-preview-container" style="text-align: center; margin-bottom: 10px;">
+                    <img id="photo-preview-img" style="max-width: 100%; max-height: 400px; border-radius: 8px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" id="photo-preview-cancel">Cancel</button>
+                <button class="modal-btn" id="photo-retake">Retake</button>
+                <button class="modal-btn save" id="photo-use">Use Photo</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Photo Edit Modal (replace/remove) -->
+    <div class="modal-backdrop" id="photo-edit-modal">
+        <div class="modal-dialog" style="max-width: 600px; background: white; border-radius: 12px; padding: 0; margin: 20px;">
+            <div class="modal-header">Edit Photo</div>
+            <div class="modal-content" style="padding: 24px 30px;">
+                <div id="photo-edit-container" style="text-align: center; margin-bottom: 20px;">
+                    <img id="photo-edit-img" style="max-width: 100%; max-height: 400px; border-radius: 8px;">
+                </div>
+                <button class="photo-option-btn" id="photo-replace-btn">
+                    Replace Photo
+                </button>
+                <button class="photo-option-btn" id="photo-remove-btn" style="border-color: #EF4444; color: #EF4444;">
+                    Remove Photo
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn cancel" id="photo-edit-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Hidden file input for photos -->
+    <input type="file" id="photo-file-input" accept="image/*">
+    <!-- Hidden camera input for mobile -->
+    <input type="file" id="camera-input" accept="image/*" capture="environment">
 
     <script>
         // ===== STATE MANAGEMENT =====
@@ -957,7 +1128,8 @@
                 zoom: 1,
                 offsetX: 0,
                 offsetY: 0,
-                activeLayer: 0
+                activeLayer: 0,
+                photoViewMode: false // false = text view, true = photo view
             }
         };
 
@@ -965,6 +1137,9 @@
         let isAnimating = false;
         let animationStartTime = 0;
         let animationDuration = 500; // ms
+        
+        // ===== PHOTO CACHE =====
+        const photoCache = new Map(); // Cache loaded images for better performance
         let animationStart = {};
         let animationTarget = {};
         let layerTransitionOpacity = 1;
@@ -1559,6 +1734,23 @@
 
         let selectedDirection = null;
         let selectedOrientation = 'landscape'; // Default
+        let currentPhotoData = null; // Stores base64 photo data temporarily
+        let photoSource = null; // Tracks if photo is from 'camera' or 'gallery'
+        
+        // Photo modal elements
+        const photoBtn = document.getElementById('photo-btn');
+        const photoModal = document.getElementById('photo-modal');
+        const photoPreviewModal = document.getElementById('photo-preview-modal');
+        const photoEditModal = document.getElementById('photo-edit-modal');
+        const cameraBtn = document.getElementById('camera-btn');
+        const galleryBtn = document.getElementById('gallery-btn');
+        const photoFileInput = document.getElementById('photo-file-input');
+        const cameraInput = document.getElementById('camera-input');
+        const photoPreviewImg = document.getElementById('photo-preview-img');
+        const photoEditImg = document.getElementById('photo-edit-img');
+        const viewToggleBtn = document.getElementById('view-toggle-btn');
+        const photoRetakeBtn = document.getElementById('photo-retake');
+        const photoPreviewCancelBtn = document.getElementById('photo-preview-cancel');
 
         // Add click listeners to both Add buttons (desktop and mobile)
         document.getElementById('add-btn-desktop').addEventListener('click', openModal);
@@ -1612,11 +1804,223 @@
 
             updateSaveButton();
             // Don't auto-focus on mobile to prevent keyboard popup
+            
+            // Reset photo button
+            currentPhotoData = null;
+            photoSource = null;
+            updatePhotoButton();
         }
 
         function closeModal() {
             modal.classList.remove('active');
+            currentPhotoData = null; // Clear temporary photo data
+            photoSource = null; // Clear photo source
+            updatePhotoButton(); // Reset photo button
         }
+        
+        // ===== PHOTO FUNCTIONALITY =====
+        
+        // Update photo button display
+        function updatePhotoButton() {
+            const currentCard = getCurrentCard();
+            const cardNum = cardNumberInput.value.trim();
+            
+            // Check if editing existing card with photo
+            const existingCard = cardNum ? getCardByNumber(padCardNumber(cardNum)) : null;
+            const photoData = currentPhotoData || (existingCard && existingCard.photo);
+            
+            if (photoData) {
+                // Show thumbnail
+                photoBtn.classList.add('has-photo');
+                photoBtn.innerHTML = `
+                    <img src="${photoData}" class="photo-thumbnail" alt="Card photo">
+                    <div class="photo-edit-icon">✏️</div>
+                `;
+            } else {
+                // Show add button
+                photoBtn.classList.remove('has-photo');
+                photoBtn.innerHTML = `
+                    <span class="photo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#0F172A" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                            <circle cx="8.5" cy="8.5" r="1.5"/>
+                            <polyline points="21 15 16 10 5 21"/>
+                        </svg>
+                    </span>
+                `;
+            }
+        }
+        
+        // Open photo modal
+        photoBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const currentCard = getCurrentCard();
+            const cardNum = cardNumberInput.value.trim();
+            const existingCard = cardNum ? getCardByNumber(padCardNumber(cardNum)) : null;
+            const photoData = currentPhotoData || (existingCard && existingCard.photo);
+            
+            if (photoData) {
+                // Has photo - open edit modal
+                photoEditImg.src = photoData;
+                photoEditModal.classList.add('active');
+            } else {
+                // No photo - open capture/upload modal
+                photoModal.classList.add('active');
+            }
+        });
+        
+        // Camera button - trigger camera input
+        cameraBtn.addEventListener('click', () => {
+            photoSource = 'camera';
+            cameraInput.click();
+        });
+        
+        // Gallery button - trigger file input
+        galleryBtn.addEventListener('click', () => {
+            photoSource = 'gallery';
+            photoFileInput.click();
+        });
+        
+        // Handle camera capture
+        cameraInput.addEventListener('change', handlePhotoSelection);
+        
+        // Handle gallery selection
+        photoFileInput.addEventListener('change', handlePhotoSelection);
+        
+        // Handle photo selection (camera or gallery)
+        function handlePhotoSelection(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Check file size (limit to 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Photo is too large. Please choose a photo under 5MB.', 'error');
+                e.target.value = ''; // Clear input
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Resize if needed (max 800px width/height)
+                    const maxSize = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxSize || height > maxSize) {
+                        if (width > height) {
+                            height = (height / width) * maxSize;
+                            width = maxSize;
+                        } else {
+                            width = (width / height) * maxSize;
+                            height = maxSize;
+                        }
+                    }
+                    
+                    // Create canvas and resize
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to base64 (JPEG with 85% quality)
+                    const resizedPhoto = canvas.toDataURL('image/jpeg', 0.85);
+                    
+                    // Show preview
+                    photoPreviewImg.src = resizedPhoto;
+                    photoModal.classList.remove('active');
+                    
+                    // Update button text based on source
+                    if (photoSource === 'camera') {
+                        photoRetakeBtn.textContent = 'Retake';
+                    } else {
+                        photoRetakeBtn.textContent = 'Choose Different';
+                    }
+                    
+                    photoPreviewModal.classList.add('active');
+                    
+                    // Store temporarily
+                    currentPhotoData = resizedPhoto;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            // Clear input for next use
+            e.target.value = '';
+        }
+        
+        // Photo preview - Retake
+        // Photo preview cancel - go back to Add Location modal
+        photoPreviewCancelBtn.addEventListener('click', () => {
+            photoPreviewModal.classList.remove('active');
+            currentPhotoData = null;
+            photoSource = null;
+        });
+        
+        // Photo preview retake/choose different
+        document.getElementById('photo-retake').addEventListener('click', () => {
+            photoPreviewModal.classList.remove('active');
+            photoModal.classList.add('active');
+            currentPhotoData = null;
+        });
+        
+        // Photo preview - Use Photo
+        document.getElementById('photo-use').addEventListener('click', () => {
+            photoPreviewModal.classList.remove('active');
+            updatePhotoButton();
+        });
+        
+        // Photo edit - Replace
+        document.getElementById('photo-replace-btn').addEventListener('click', () => {
+            photoEditModal.classList.remove('active');
+            photoModal.classList.add('active');
+        });
+        
+        // Photo edit - Remove
+        document.getElementById('photo-remove-btn').addEventListener('click', () => {
+            currentPhotoData = null;
+            photoEditModal.classList.remove('active');
+            updatePhotoButton();
+        });
+        
+        // Close photo modals
+        document.getElementById('photo-modal-cancel').addEventListener('click', () => {
+            photoModal.classList.remove('active');
+        });
+        
+        document.getElementById('photo-edit-cancel').addEventListener('click', () => {
+            photoEditModal.classList.remove('active');
+        });
+        
+        // View toggle button
+        viewToggleBtn.addEventListener('click', () => {
+            state.view.photoViewMode = !state.view.photoViewMode;
+            
+            // Update button icon
+            if (state.view.photoViewMode) {
+                viewToggleBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width: 18px; height: 18px; vertical-align: middle;">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <circle cx="8.5" cy="8.5" r="1.5"/>
+                        <polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                `;
+                viewToggleBtn.title = 'Switch to Text View';
+            } else {
+                viewToggleBtn.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="currentColor" style="width: 18px; height: 18px; vertical-align: middle;">
+                        <rect x="2" y="2" width="20" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <text x="12" y="17" text-anchor="middle" font-family="Inter, sans-serif" font-size="14" font-weight="bold" fill="currentColor">T</text>
+                    </svg>
+                `;
+                viewToggleBtn.title = 'Switch to Photo View';
+            }
+            
+            render();
+        });
 
         // Numeric keypad handlers
         const keypadButtons = document.querySelectorAll('.keypad-btn');
@@ -1749,7 +2153,8 @@
                         z: null,
                         orientation: selectedOrientation,
                         positioned: false,
-                        manuallyPositioned: false
+                        manuallyPositioned: false,
+                        photo: currentPhotoData || null // Save photo data
                     };
                     state.cards.push(card);
                     console.log('Created new card:', card);
@@ -2340,9 +2745,9 @@
 
             // Draw up arrow at top left if there's an up connection
             if (upConnectionCard) {
-                const circleRadius = 16;
-                const circleX = x - cardW/2 + circleRadius + 6;
-                const circleY = y - cardH/2 + circleRadius + 6;
+                const circleRadius = 12;
+                const circleX = x - cardW/2 + circleRadius + 5;
+                const circleY = y - cardH/2 + circleRadius + 5;
                 
                 // Circle background
                 ctx.fillStyle = '#8B5CF6'; // Purple for up
@@ -2352,7 +2757,7 @@
                 
                 // Arrow
                 ctx.fillStyle = 'white';
-                const arrowSize = 7;
+                const arrowSize = 5;
                 ctx.beginPath();
                 ctx.moveTo(circleX, circleY - arrowSize);
                 ctx.lineTo(circleX - arrowSize, circleY + arrowSize/2);
@@ -2362,17 +2767,17 @@
                 
                 // Card number next to arrow
                 ctx.fillStyle = '#8B5CF6';
-                ctx.font = '10px Inter, sans-serif';
+                ctx.font = '9px Inter, sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(upConnectionCard.num, circleX + circleRadius + 4, circleY);
+                ctx.fillText(upConnectionCard.num, circleX + circleRadius + 3, circleY);
             }
 
             // Draw down arrow at bottom left if there's a down connection
             if (downConnectionCard) {
-                const circleRadius = 16;
-                const circleX = x - cardW/2 + circleRadius + 6;
-                const circleY = y + cardH/2 - circleRadius - 6;
+                const circleRadius = 12;
+                const circleX = x - cardW/2 + circleRadius + 5;
+                const circleY = y + cardH/2 - circleRadius - 5;
                 
                 // Circle background
                 ctx.fillStyle = '#10B981'; // Green for down
@@ -2382,7 +2787,7 @@
                 
                 // Arrow
                 ctx.fillStyle = 'white';
-                const arrowSize = 7;
+                const arrowSize = 5;
                 ctx.beginPath();
                 ctx.moveTo(circleX, circleY + arrowSize);
                 ctx.lineTo(circleX - arrowSize, circleY - arrowSize/2);
@@ -2392,17 +2797,17 @@
                 
                 // Card number next to arrow
                 ctx.fillStyle = '#10B981';
-                ctx.font = '10px Inter, sans-serif';
+                ctx.font = '9px Inter, sans-serif';
                 ctx.textAlign = 'left';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(downConnectionCard.num, circleX + circleRadius + 4, circleY);
+                ctx.fillText(downConnectionCard.num, circleX + circleRadius + 3, circleY);
             }
             
             // Draw portal/cross-layer icon at bottom right if there's a cross-layer "other" connection
             if (crossLayerOtherCard) {
-                const circleRadius = 16;
-                const circleX = x + cardW/2 - circleRadius - 6;
-                const circleY = y + cardH/2 - circleRadius - 6;
+                const circleRadius = 12;
+                const circleX = x + cardW/2 - circleRadius - 5;
+                const circleY = y + cardH/2 - circleRadius - 5;
                 
                 // Circle background
                 ctx.fillStyle = '#EF4444'; // Red for cross-layer portal
@@ -2412,7 +2817,7 @@
                 
                 // White star
                 ctx.fillStyle = 'white';
-                const starRadius = 8;
+                const starRadius = 6;
                 const starPoints = 5;
                 ctx.beginPath();
                 for (let i = 0; i < starPoints * 2; i++) {
@@ -2431,24 +2836,75 @@
                 
                 // Card number to the left of the icon
                 ctx.fillStyle = '#EF4444';
-                ctx.font = '10px Inter, sans-serif';
+                ctx.font = '9px Inter, sans-serif';
                 ctx.textAlign = 'right';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(crossLayerOtherCard.num, circleX - circleRadius - 4, circleY);
+                ctx.fillText(crossLayerOtherCard.num, circleX - circleRadius - 3, circleY);
             }
 
-            // Card number
-            ctx.fillStyle = '#0F172A';
-            ctx.font = `bold 48px Inter, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(card.num, x, y - 15);
+            // Draw photo or text based on view mode
+            if (state.view.photoViewMode && card.photo) {
+                // Photo view mode - draw the photo
+                // Use cached image or create new one
+                let img = photoCache.get(card.photo);
+                if (!img) {
+                    img = new Image();
+                    img.src = card.photo;
+                    photoCache.set(card.photo, img);
+                }
+                
+                // Only draw if image is loaded
+                if (img.complete) {
+                    // Create a clipping path for rounded corners
+                    ctx.save();
+                    roundRect(ctx, x - cardW/2, y - cardH/2, cardW, cardH, 16);
+                    ctx.clip();
+                    
+                    // Draw the image to fill the card
+                    ctx.drawImage(img, x - cardW/2, y - cardH/2, cardW, cardH);
+                    
+                    ctx.restore();
+                } else {
+                    // Image still loading - show placeholder text
+                    ctx.fillStyle = '#94A3B8';
+                    ctx.font = `14px Inter, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Loading photo...', x, y);
+                    
+                    // Re-render when image loads
+                    img.onload = () => render();
+                }
+            } else {
+                // Text view mode (default) - draw number and note
+                // Card number
+                ctx.fillStyle = '#0F172A';
+                ctx.font = `bold 38px Inter, sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(card.num, x, y - 25);
 
-            // Note
-            if (card.note) {
-                ctx.fillStyle = '#64748B';
-                ctx.font = `14px Inter, sans-serif`;
-                ctx.fillText(card.note, x, y + 25);
+                // Note with text wrapping
+                if (card.note) {
+                    ctx.fillStyle = '#64748B';
+                    ctx.font = `13px Inter, sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    // Calculate max width for text (card width minus padding)
+                    const maxWidth = cardW - 20;
+                    const lineHeight = 16;
+                    const maxLines = 2;
+                    
+                    // Wrap text into lines
+                    const lines = wrapText(ctx, card.note, maxWidth, maxLines);
+                    
+                    // Draw each line
+                    const startY = y + 10 - ((lines.length - 1) * lineHeight / 2);
+                    lines.forEach((line, i) => {
+                        ctx.fillText(line, x, startY + (i * lineHeight));
+                    });
+                }
             }
 
             // Z badge
@@ -2475,6 +2931,51 @@
             ctx.lineTo(x, y + radius);
             ctx.quadraticCurveTo(x, y, x + radius, y);
             ctx.closePath();
+        }
+
+        function wrapText(ctx, text, maxWidth, maxLines = 2) {
+            const words = text.split(' ');
+            const lines = [];
+            let currentLine = '';
+
+            for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
+                const metrics = ctx.measureText(testLine);
+                
+                if (metrics.width > maxWidth && currentLine) {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                    
+                    // Stop if we've reached max lines
+                    if (lines.length >= maxLines) {
+                        // Add ellipsis to last line if there are more words
+                        if (i < words.length - 1) {
+                            // Try to fit remaining words or add ellipsis
+                            const remaining = words.slice(i).join(' ');
+                            const withEllipsis = currentLine + '...';
+                            if (ctx.measureText(withEllipsis).width <= maxWidth) {
+                                currentLine = withEllipsis;
+                            } else {
+                                // Truncate current line and add ellipsis
+                                while (ctx.measureText(currentLine + '...').width > maxWidth && currentLine.length > 0) {
+                                    currentLine = currentLine.slice(0, -1);
+                                }
+                                currentLine += '...';
+                            }
+                        }
+                        lines.push(currentLine);
+                        return lines;
+                    }
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            
+            if (currentLine) {
+                lines.push(currentLine);
+            }
+            
+            return lines;
         }
 
         function drawConnection(ctx, fromCard, toCard, link) {
@@ -4012,7 +4513,8 @@
                     y: c.y,
                     z: c.z,
                     orientation: c.orientation || 'landscape',
-                    manuallyPositioned: c.manuallyPositioned || false
+                    manuallyPositioned: c.manuallyPositioned || false,
+                    photo: c.photo || null
                 })),
                 links: state.links.map(l => ({
                     id: l.id,
