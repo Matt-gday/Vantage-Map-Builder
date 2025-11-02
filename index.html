@@ -2223,8 +2223,8 @@
             reader.onload = (event) => {
                 const img = new Image();
                 img.onload = () => {
-                    // Resize if needed (max 800px width/height)
-                    const maxSize = 800;
+                    // Resize if needed (max 300px width/height - small but recognizable)
+                    const maxSize = 300;
                     let width = img.width;
                     let height = img.height;
                     
@@ -2245,8 +2245,8 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
                     
-                    // Convert to base64 (JPEG with 85% quality)
-                    const resizedPhoto = canvas.toDataURL('image/jpeg', 0.85);
+                    // Convert to base64 (JPEG with 50% quality - tiny file size for visual reminders)
+                    const resizedPhoto = canvas.toDataURL('image/jpeg', 0.50);
                     
                     // Show preview
                     photoPreviewImg.src = resizedPhoto;
@@ -2459,18 +2459,32 @@
                         return;
                     }
                     
+                    // Save original values for rollback
+                    const originalNote = card.note;
+                    const originalOrientation = card.orientation;
+                    const originalPhoto = card.photo;
+                    
                     // Update card properties
                     card.note = note;
                     card.orientation = selectedOrientation;
                     card.photo = currentPhotoData || null;
                     
                     console.log('Updated card:', card);
-                    showToast(`Updated card ${card.num}`, 'success');
                     
-                    saveToLocalStorage();
-                    closeModal();
-                    render();
-                    return;
+                    try {
+                        saveToLocalStorage();
+                        showToast(`Updated card ${card.num}`, 'success');
+                        closeModal();
+                        render();
+                        return;
+                    } catch (e) {
+                        // Rollback changes if save failed
+                        card.note = originalNote;
+                        card.orientation = originalOrientation;
+                        card.photo = originalPhoto;
+                        // Error message already shown by saveToLocalStorage
+                        return;
+                    }
                 }
                 
                 // ADD MODE - Continue with normal add logic
@@ -5129,10 +5143,60 @@
             showToast('Map exported successfully', 'success');
         }
 
-        function importJSON(data) {
+        // Re-compress a photo to current settings (300px, 50% quality)
+        function recompressPhoto(photoData) {
+            return new Promise((resolve) => {
+                if (!photoData) {
+                    resolve(null);
+                    return;
+                }
+                
+                const img = new Image();
+                img.onload = () => {
+                    const maxSize = 300;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxSize || height > maxSize) {
+                        if (width > height) {
+                            height = (height / width) * maxSize;
+                            width = maxSize;
+                        } else {
+                            width = (width / height) * maxSize;
+                            height = maxSize;
+                        }
+                    }
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const compressed = canvas.toDataURL('image/jpeg', 0.50);
+                    resolve(compressed);
+                };
+                img.onerror = () => resolve(null);
+                img.src = photoData;
+            });
+        }
+
+        async function importJSON(data) {
             if (state.cards.length > 0) {
                 if (!confirm('Import will replace the current map. Continue?')) {
                     return;
+                }
+            }
+
+            // Re-compress all photos during import
+            const cardsWithPhotos = data.cards.filter(c => c.photo);
+            if (cardsWithPhotos.length > 0) {
+                showToast(`Re-compressing ${cardsWithPhotos.length} photos...`, 'success');
+                
+                for (const card of data.cards) {
+                    if (card.photo) {
+                        card.photo = await recompressPhoto(card.photo);
+                    }
                 }
             }
 
@@ -5171,6 +5235,35 @@
         }
 
         // ===== LOCAL STORAGE =====
+        let storageWarningShown = false; // Track if warning has been shown this session
+        
+        function checkStorageUsage() {
+            try {
+                const data = {
+                    cards: state.cards,
+                    links: state.links,
+                    currentCardId: state.currentCardId,
+                    meta: state.meta,
+                    view: state.view,
+                    nextCardId,
+                    nextLinkId
+                };
+                const dataStr = JSON.stringify(data);
+                const sizeBytes = dataStr.length;
+                const sizeMB = (sizeBytes / 1024 / 1024).toFixed(2);
+                const maxSizeBytes = 5 * 1024 * 1024; // Approximate 5MB limit
+                const percentUsed = (sizeBytes / maxSizeBytes) * 100;
+                
+                return {
+                    sizeMB,
+                    percentUsed,
+                    photoCount: state.cards.filter(c => c.photo).length
+                };
+            } catch (e) {
+                return null;
+            }
+        }
+        
         function saveToLocalStorage() {
             const data = {
                 cards: state.cards,
@@ -5181,7 +5274,42 @@
                 nextCardId,
                 nextLinkId
             };
-            localStorage.setItem('vantage-map', JSON.stringify(data));
+            
+            try {
+                localStorage.setItem('vantage-map', JSON.stringify(data));
+                
+                // Check if getting close to quota (only warn once per session)
+                if (!storageWarningShown) {
+                    const usage = checkStorageUsage();
+                    if (usage && usage.percentUsed > 80 && usage.percentUsed < 95) {
+                        console.warn(`Storage at ${usage.percentUsed.toFixed(0)}% capacity (${usage.sizeMB}MB)`);
+                        showToast(
+                            `Warning: Storage is ${usage.percentUsed.toFixed(0)}% full (${usage.photoCount} photos, ${usage.sizeMB}MB). ` +
+                            `Consider exporting your map soon.`,
+                            'error'
+                        );
+                        storageWarningShown = true;
+                    }
+                }
+            } catch (e) {
+                if (e.name === 'QuotaExceededError' || e.code === 22) {
+                    // Calculate approximate storage usage
+                    const dataStr = JSON.stringify(data);
+                    const sizeMB = (dataStr.length / 1024 / 1024).toFixed(2);
+                    const photoCount = state.cards.filter(c => c.photo).length;
+                    
+                    showToast(
+                        `Storage quota exceeded! You have ${photoCount} photos using ~${sizeMB}MB. ` +
+                        `Try removing some photos or export your map and start fresh.`,
+                        'error'
+                    );
+                    
+                    // Re-throw so calling code knows save failed
+                    throw e;
+                }
+                // Re-throw other errors
+                throw e;
+            }
         }
 
         function loadFromLocalStorage() {
